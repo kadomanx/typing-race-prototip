@@ -1,0 +1,458 @@
+/* ============================================================
+   Typing Race – Stil Dosyası
+   ============================================================ */
+
+/* ── Reset & Genel ─────────────────────────────────────────── */
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg: #0f0f1a;
+  --surface: #1a1a2e;
+  --surface-alt: #16213e;
+  --primary: #e94560;
+  --primary-hover: #ff6b81;
+  --accent: #0f3460;
+  --text: #e0e0e0;
+  --text-muted: #888;
+  --correct: #2ecc71;
+  --incorrect: #e74c3c;
+  --current: #f1c40f;
+  --radius: 12px;
+  --leaderboard-width: 320px;
+}
+
+html,
+body {
+  height: 100%;
+  font-family: "Segoe UI", "Inter", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+}
+
+/* ── Ekran Yönetimi ────────────────────────────────────────── */
+.screen {
+  display: none;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 2rem;
+  padding-right: calc(var(--leaderboard-width) + 2rem);
+}
+
+.screen.active {
+  display: flex;
+}
+
+/* ── Kart (Card) ───────────────────────────────────────────── */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 3rem;
+  text-align: center;
+  width: 100%;
+  max-width: 500px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.card h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.card h2 {
+  font-size: 2rem;
+  margin-bottom: 1.5rem;
+}
+
+.subtitle {
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+  font-size: 1.1rem;
+}
+
+/* ── Form ──────────────────────────────────────────────────── */
+.form-group {
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 1.1rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+  border-color: var(--primary);
+}
+
+/* ── Butonlar ──────────────────────────────────────────────── */
+.btn-primary {
+  width: 100%;
+  padding: 1rem;
+  border: none;
+  border-radius: 8px;
+  background: var(--primary);
+  color: #fff;
+  font-size: 1.15rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* ── Oyun Üst İstatistikler ────────────────────────────────── */
+.game-header {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.stat-box {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 1rem 2rem;
+  text-align: center;
+  min-width: 120px;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.stat-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* ── Metin Gösterimi ───────────────────────────────────────── */
+.text-display {
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 2rem;
+  font-size: 1.5rem;
+  line-height: 2;
+  letter-spacing: 0.5px;
+  margin-bottom: 1.5rem;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+  user-select: none;
+  min-height: 120px;
+}
+
+.text-display .char {
+  position: relative;
+  transition: color 0.05s;
+}
+
+.text-display .char.correct {
+  color: var(--correct);
+}
+
+.text-display .char.incorrect {
+  color: var(--incorrect);
+  text-decoration: underline;
+  text-decoration-color: var(--incorrect);
+}
+
+.text-display .char.current {
+  border-bottom: 2px solid var(--current);
+  animation: blink 0.8s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { border-color: var(--current); }
+  50% { border-color: transparent; }
+}
+
+/* ── Yazma Girdisi ─────────────────────────────────────────── */
+.typing-input {
+  display: block;
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 1rem 1.25rem;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 1.2rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.typing-input:focus {
+  border-color: var(--primary);
+}
+
+/* ── Sonuç İstatistikleri ──────────────────────────────────── */
+.result-stats {
+  display: flex;
+  gap: 2rem;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+
+.result-item {
+  background: var(--bg);
+  border-radius: var(--radius);
+  padding: 1.5rem 2rem;
+  text-align: center;
+  min-width: 140px;
+}
+
+.result-label {
+  display: block;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.result-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+/* ── Liderlik Tablosu (Sağ Panel) ──────────────────────────── */
+.leaderboard-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: var(--leaderboard-width);
+  height: 100vh;
+  background: var(--surface);
+  border-left: 1px solid var(--accent);
+  padding: 1.5rem;
+  overflow-y: auto;
+  z-index: 100;
+}
+
+.leaderboard-panel h3 {
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+#leaderboard-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+#leaderboard-table th {
+  text-align: left;
+  padding: 0.5rem 0.4rem;
+  border-bottom: 2px solid var(--accent);
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+#leaderboard-table td {
+  padding: 0.6rem 0.4rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+#leaderboard-table tbody tr:nth-child(1) td { color: #ffd700; }  /* Altın */
+#leaderboard-table tbody tr:nth-child(2) td { color: #c0c0c0; }  /* Gümüş */
+#leaderboard-table tbody tr:nth-child(3) td { color: #cd7f32; }  /* Bronz */
+
+.leaderboard-empty {
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+  margin-top: 2rem;
+}
+
+/* ── Mod Seçici (Welcome Ekranı) ───────────────────────────── */
+.mode-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.mode-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 2px solid var(--accent);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  text-align: left;
+}
+
+.mode-btn:hover {
+  border-color: var(--primary);
+  background: var(--surface-alt);
+}
+
+.mode-btn.active {
+  border-color: var(--primary);
+  background: rgba(233, 69, 96, 0.1);
+}
+
+.mode-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.mode-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  display: block;
+}
+
+.mode-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: block;
+}
+
+/* ── Mod Rozeti (Oyun & Sonuç Ekranı) ─────────────────────── */
+.game-mode-badge,
+.result-mode-badge {
+  display: inline-block;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 20px;
+  padding: 0.35rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary);
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+/* ── Leaderboard Sekmeleri ─────────────────────────────────── */
+.leaderboard-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--accent);
+}
+
+.lb-tab {
+  flex: 1;
+  padding: 0.5rem 0.25rem;
+  border: none;
+  background: var(--bg);
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  white-space: nowrap;
+}
+
+.lb-tab:not(:last-child) {
+  border-right: 1px solid var(--accent);
+}
+
+.lb-tab:hover {
+  background: var(--surface-alt);
+  color: var(--text);
+}
+
+.lb-tab.active {
+  background: var(--primary);
+  color: #fff;
+}
+
+/* ── Kod Modu (Monospace Font) ─────────────────────────────── */
+.text-display.code-mode {
+  font-family: "Fira Code", "Cascadia Code", "JetBrains Mono", "SF Mono", "Consolas", monospace;
+  font-size: 1.15rem;
+  line-height: 1.8;
+  letter-spacing: 0;
+  background: #0d1117;
+  border-color: #30363d;
+}
+
+.typing-input.code-mode {
+  font-family: "Fira Code", "Cascadia Code", "JetBrains Mono", "SF Mono", "Consolas", monospace;
+  font-size: 1.05rem;
+  background: #0d1117;
+  border-color: #30363d;
+}
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  :root {
+    --leaderboard-width: 260px;
+  }
+}
+
+@media (max-width: 700px) {
+  .leaderboard-panel {
+    position: static;
+    width: 100%;
+    height: auto;
+    border-left: none;
+    border-top: 1px solid var(--accent);
+  }
+
+  .screen {
+    padding-right: 2rem;
+    min-height: auto;
+    padding-bottom: 0;
+  }
+
+  .text-display {
+    font-size: 1.15rem;
+  }
+}

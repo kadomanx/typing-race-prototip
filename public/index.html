@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⌨️ Typing Race – Hızlı Yazma Oyunu</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- ══════════════════════════════════════════
+       EKRAN 1: Giriş (Rumuz + Mod Seçimi)
+       ══════════════════════════════════════════ -->
+  <section id="screen-welcome" class="screen active">
+    <div class="card">
+      <h1>⌨️ Typing Race</h1>
+      <p class="subtitle">Hızlı Yazma Klavye Oyunu</p>
+
+      <div class="form-group">
+        <label for="nickname-input">Rumuzun</label>
+        <input
+          type="text"
+          id="nickname-input"
+          placeholder="Adını gir…"
+          maxlength="20"
+          autocomplete="off"
+        />
+      </div>
+
+      <!-- Mod Seçimi -->
+      <div class="form-group">
+        <label>Oyun Modu</label>
+        <div class="mode-selector">
+          <button class="mode-btn active" data-mode="SOLO_WORDS">
+            <span class="mode-icon">📝</span>
+            <span class="mode-title">Kelime Akışı</span>
+            <span class="mode-desc">Sade kelimeler, noktalama yok</span>
+          </button>
+          <button class="mode-btn" data-mode="SOLO_TEXT">
+            <span class="mode-icon">📖</span>
+            <span class="mode-title">Tam Metin</span>
+            <span class="mode-desc">Cümleler, noktalama ve büyük harf</span>
+          </button>
+          <button class="mode-btn" data-mode="SOLO_CODE">
+            <span class="mode-icon">💻</span>
+            <span class="mode-title">Kod Snippet</span>
+            <span class="mode-desc">Programlama sözdizimi ve semboller</span>
+          </button>
+        </div>
+      </div>
+
+      <button id="btn-start" class="btn-primary" disabled>Oyuna Başla</button>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       EKRAN 2: Oyun Alanı
+       ══════════════════════════════════════════ -->
+  <section id="screen-game" class="screen">
+    <!-- Aktif mod etiketi -->
+    <div class="game-mode-badge" id="game-mode-badge"></div>
+
+    <div class="game-header">
+      <div class="stat-box">
+        <span class="stat-label">WPM</span>
+        <span id="stat-wpm" class="stat-value">0</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">Doğruluk</span>
+        <span id="stat-accuracy" class="stat-value">100%</span>
+      </div>
+      <div class="stat-box">
+        <span class="stat-label">Süre</span>
+        <span id="stat-timer" class="stat-value">0s</span>
+      </div>
+    </div>
+
+    <!-- Yazılacak metin -->
+    <div id="text-display" class="text-display"></div>
+
+    <!-- Kullanıcı giriş alanı -->
+    <input
+      type="text"
+      id="typing-input"
+      class="typing-input"
+      placeholder="Yazmaya başla…"
+      autocomplete="off"
+      autocorrect="off"
+      autocapitalize="off"
+      spellcheck="false"
+    />
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       EKRAN 3: Sonuç
+       ══════════════════════════════════════════ -->
+  <section id="screen-result" class="screen">
+    <div class="card">
+      <h2>🏁 Oyun Bitti!</h2>
+      <div class="result-mode-badge" id="result-mode-badge"></div>
+      <div class="result-stats">
+        <div class="result-item">
+          <span class="result-label">WPM</span>
+          <span id="result-wpm" class="result-value">0</span>
+        </div>
+        <div class="result-item">
+          <span class="result-label">Doğruluk</span>
+          <span id="result-accuracy" class="result-value">0%</span>
+        </div>
+      </div>
+      <button id="btn-play-again" class="btn-primary">Tekrar Oyna</button>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       SKORBOARD (Her ekranda görünür)
+       ══════════════════════════════════════════ -->
+  <aside id="leaderboard-panel" class="leaderboard-panel">
+    <h3>🏆 Liderlik Tablosu</h3>
+
+    <!-- Kategori Sekmeleri -->
+    <div class="leaderboard-tabs">
+      <button class="lb-tab active" data-category="SOLO_WORDS">📝 Kelime</button>
+      <button class="lb-tab" data-category="SOLO_TEXT">📖 Metin</button>
+      <button class="lb-tab" data-category="SOLO_CODE">💻 Kod</button>
+    </div>
+
+    <table id="leaderboard-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Rumuz</th>
+          <th>WPM</th>
+          <th>Doğruluk</th>
+        </tr>
+      </thead>
+      <tbody id="leaderboard-body">
+        <!-- Socket.io ile dinamik doldurulacak -->
+      </tbody>
+    </table>
+    <p id="leaderboard-empty" class="leaderboard-empty">Henüz skor yok.</p>
+  </aside>
+
+  <!-- Bağımlılıklar -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
