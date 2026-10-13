@@ -65,6 +65,11 @@
     leaderboardTabs: $$(".lb-tab"),
     leaderboardBody: $("#leaderboard-body"),
     leaderboardEmpty: $("#leaderboard-empty"),
+
+    // Ses ve Anti-Cheat
+    btnToggleSound: $("#btn-toggle-sound"),
+    anticheatModal: $("#anticheat-modal"),
+    btnAnticheatDismiss: $("#btn-anticheat-dismiss"),
   };
 
   // ── Mod Etiketleri ──────────────────────────────────────────
@@ -245,6 +250,9 @@
     // Geri sayım overlay'ini göster
     els.countdownOverlay.style.display = "flex";
     els.countdownNumber.classList.remove("go");
+
+    // SFX: Geri sayım bipi veya başlama zili çal
+    SoundFX.playCountdownTick(count);
 
     if (count > 0) {
       els.countdownNumber.textContent = count;
@@ -430,6 +438,16 @@
     state.correctCount = correctSoFar;
     state.totalKeystrokes = inputLen;
 
+    // SFX: Son yazılan tuş vuruşu için ses çal
+    const lastCharIdx = inputLen - 1;
+    if (lastCharIdx >= 0 && lastCharIdx < state.targetText.length) {
+      if (inputVal[lastCharIdx] === state.targetText[lastCharIdx]) {
+        SoundFX.playKeySuccess();
+      } else {
+        SoundFX.playKeyError();
+      }
+    }
+
     const stats = updateStats();
 
     // ── Multiplayer Arena: Canlı İlerleme Yayını ───────────────
@@ -450,7 +468,13 @@
     }
   });
 
-  els.typingInput.addEventListener("paste", (e) => e.preventDefault());
+  // ── Anti-Cheat: Kopyala-Yapıştır ve Sürükle-Bırak Engeli ─────
+  ["paste", "copy", "cut", "drop", "dragstart"].forEach((evtName) => {
+    els.typingInput.addEventListener(evtName, (e) => {
+      e.preventDefault();
+      SoundFX.playKeyError();
+    });
+  });
 
   function updateStats() {
     const elapsed = getElapsedMinutes();
@@ -505,6 +529,9 @@
     els.resultWpm.textContent = Math.round(finalWpm * 100) / 100;
     els.resultAccuracy.textContent = Math.round(finalAccuracy * 100) / 100 + "%";
     renderModeBadge(els.resultModeBadge, state.selectedMode);
+
+    // SFX: Zafer / Bitiş Fanfarı
+    SoundFX.playVictory();
 
     if (state.selectedMode === "MULTIPLAYER_VS") {
       // Arena bitişi
@@ -650,6 +677,77 @@
   socket.on("game:error", ({ message }) => {
     alert("Hata: " + message);
   });
+
+  // ══════════════════════════════════════════════════════════════
+  //  8. ODAK KAYBI KORUMASI (ANTI-CHEAT) & SES KONTROLÜ
+  // ══════════════════════════════════════════════════════════════
+
+  function triggerFocusCheatDisqualification() {
+    // Sadece oyun aktifken, henüz bitmemişken ve yazma başlamışken
+    if (screens.game.classList.contains("active") && !state.isFinished && state.startTime) {
+      state.isFinished = true;
+
+      if (state.timerInterval) {
+        clearInterval(state.timerInterval);
+        state.timerInterval = null;
+      }
+
+      els.typingInput.disabled = true;
+
+      // Hile uyarı sesi
+      SoundFX.playWarning();
+
+      // Uyarı modalını aç
+      if (els.anticheatModal) {
+        els.anticheatModal.style.display = "flex";
+      }
+
+      // Multiplayer'daysa masadan çıkar
+      if (state.selectedMode === "MULTIPLAYER_VS") {
+        socket.emit("room:leave");
+      }
+    }
+  }
+
+  // Başka sekmeye geçildiğinde (document.hidden)
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      triggerFocusCheatDisqualification();
+    }
+  });
+
+  // Pencereden odak çıkıldığında (window.blur)
+  window.addEventListener("blur", () => {
+    triggerFocusCheatDisqualification();
+  });
+
+  // Modal kapatma
+  if (els.btnAnticheatDismiss) {
+    els.btnAnticheatDismiss.addEventListener("click", () => {
+      if (els.anticheatModal) els.anticheatModal.style.display = "none";
+      if (state.selectedMode === "MULTIPLAYER_VS") {
+        showScreen("lobby");
+      } else {
+        showScreen("welcome");
+      }
+    });
+  }
+
+  // ── Ses Aç/Kapat Butonu Arayüzü ──────────────────────────────
+  function updateSoundButtonUI() {
+    if (els.btnToggleSound) {
+      els.btnToggleSound.textContent = SoundFX.isMuted ? "🔇" : "🔊";
+      els.btnToggleSound.classList.toggle("muted", SoundFX.isMuted);
+    }
+  }
+  updateSoundButtonUI();
+
+  if (els.btnToggleSound) {
+    els.btnToggleSound.addEventListener("click", () => {
+      SoundFX.toggleMute();
+      updateSoundButtonUI();
+    });
+  }
 
   socket.on("connect", () => {
     console.log("✅ Sunucuya bağlanıldı:", socket.id);

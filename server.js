@@ -17,6 +17,12 @@ const SCORES_FILE = path.join(__dirname, "scores.json");
 const MAX_SCORES_PER_CATEGORY = 10;  // Her kategori için Top 10
 const MAX_PLAYERS_PER_ROOM = 4;      // Stand maçları için ideal oda kapasitesi
 
+// ── Anti-Cheat & Sanity Check Sınırları ─────────────────────
+const MAX_HUMAN_WPM = 210;           // İnsan biyolojisi ve dünya şampiyonası sınırı
+const MIN_HUMAN_WPM = 5;
+const MIN_ACCURACY = 40;
+const MAX_ACCURACY = 100;
+
 // ── Express & Socket.io Kurulumu ────────────────────────────
 const app = express();
 const server = http.createServer(app);
@@ -191,15 +197,43 @@ io.on("connection", (socket) => {
   socket.on("game:request-text", (data) => {
     const mode = data && VALID_MODES.includes(data.mode) ? data.mode : "SOLO_TEXT";
     const text = getRandomText(mode);
+
+    // Anti-Cheat: Sunucu tarafı zaman damgası ve metin uzunluğu kaydı
+    socket.data.soloGame = {
+      textLength: text.length,
+      startTime: Date.now(),
+      mode,
+    };
+
     socket.emit("game:text", { text, mode });
   });
 
-  // ── Solo Mod Skor Bildirimi ─────────────────────────────────
+  // ── Solo Mod Skor Bildirimi (Anti-Cheat Korumalı) ────────────
   socket.on("game:submit-score", (data) => {
     const { nickname, wpm, accuracy, mode } = data;
 
     if (!nickname || typeof wpm !== "number" || typeof accuracy !== "number") {
       return socket.emit("game:error", { message: "Geçersiz skor verisi." });
+    }
+
+    // 1. Mantıksal Sınır Kontrolü (Sanity Check)
+    if (wpm > MAX_HUMAN_WPM || wpm < MIN_HUMAN_WPM || accuracy < MIN_ACCURACY || accuracy > MAX_ACCURACY) {
+      console.warn(`🚨 [Hile Engellendi] Aşırı WPM / Geçersiz Değer: ${nickname} (WPM: ${wpm}, Acc: ${accuracy}%)`);
+      return socket.emit("game:error", {
+        message: "Hile Koruması: Skor insan anatomisi sınırlarına aykırı bulundu! (Maks 210 WPM)",
+      });
+    }
+
+    // 2. Zaman Tutarlılığı Doğrulaması (İmkansız Süre Kontrolü)
+    if (socket.data.soloGame && socket.data.soloGame.startTime) {
+      const elapsedSec = (Date.now() - socket.data.soloGame.startTime) / 1000;
+      const minRequiredSec = socket.data.soloGame.textLength / 22; // Saniyede maks 22 karakter
+      if (elapsedSec < minRequiredSec) {
+        console.warn(`🚨 [Hile Engellendi] İmkansız yazma süresi! ${nickname} (${elapsedSec.toFixed(2)}s)`);
+        return socket.emit("game:error", {
+          message: "Hile Koruması: İmkansız yazma süresi tespit edildi!",
+        });
+      }
     }
 
     const category = VALID_MODES.includes(mode) ? mode : "SOLO_TEXT";
@@ -384,6 +418,25 @@ io.on("connection", (socket) => {
 
     const player = room.players[socket.id];
     if (!player || player.isFinished) return;
+
+    // Anti-Cheat & Sanity Check (Arena Modu)
+    if (wpm > MAX_HUMAN_WPM || wpm < MIN_HUMAN_WPM || accuracy < MIN_ACCURACY || accuracy > MAX_ACCURACY) {
+      console.warn(`🚨 [Hile Engellendi - Arena] Aşırı WPM / Değer: ${player.nickname} (${wpm} WPM, %${accuracy})`);
+      return socket.emit("room:error", {
+        message: "Hile Koruması: Skor insan anatomisi sınırlarına aykırı bulundu! (Maks 210 WPM)",
+      });
+    }
+
+    if (room.startTime) {
+      const elapsedSec = (Date.now() - room.startTime) / 1000;
+      const minRequiredSec = room.text.length / 22; // Saniyede maks 22 karakter
+      if (elapsedSec < minRequiredSec) {
+        console.warn(`🚨 [Hile Engellendi - Arena] İmkansız yarış süresi: ${player.nickname} (${elapsedSec.toFixed(2)}s)`);
+        return socket.emit("room:error", {
+          message: "Hile Koruması: İmkansız yazma süresi tespit edildi!",
+        });
+      }
+    }
 
     room.finishCount++;
     player.isFinished = true;

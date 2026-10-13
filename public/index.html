@@ -7,15 +7,27 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- Sabit Üst Kontroller (Ses Aç/Kapat & TV Ekranı) -->
+  <div class="fixed-top-bar">
+    <button id="btn-toggle-sound" class="sound-toggle-btn" title="Sesi Aç / Kapat">🔊</button>
+    <a href="/tv.html" target="_blank" class="tv-link-badge">📺 TV Ekranı</a>
+  </div>
+
+  <!-- Anti-Cheat Odak Kaybı Modalı -->
+  <div id="anticheat-modal" class="anticheat-modal" style="display: none;">
+    <div class="anticheat-box">
+      <span class="anticheat-icon">🚨</span>
+      <h3>Odak Kaybı Tespit Edildi!</h3>
+      <p id="anticheat-msg">Oyun esnasında başka bir sekmeye geçildi veya tarayıcı odağı kaybedildi. Adil yarış kuralı gereği bu turun skoru geçersiz sayıldı.</p>
+      <button id="btn-anticheat-dismiss" class="btn-primary">Yeniden Başla</button>
+    </div>
+  </div>
+
   <!-- ══════════════════════════════════════════
        EKRAN 1: Giriş (Rumuz + Mod Seçimi)
        ══════════════════════════════════════════ -->
   <section id="screen-welcome" class="screen active">
     <div class="card">
-      <div class="card-top-nav">
-        <a href="/tv.html" target="_blank" class="tv-link-badge">📺 TV / İzleyici Ekranı</a>
-      </div>
-
       <h1>⌨️ Typing Race</h1>
       <p class="subtitle">Hızlı Yazma Klavye Oyunu</p>
 
@@ -238,6 +250,7 @@
 
   <!-- Bağımlılıklar -->
   <script src="/socket.io/socket.io.js"></script>
+  <script src="sound.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
