@@ -200,10 +200,11 @@
           </div>
         </div>
 
-        <!-- Yazma alanı: input görünmez, metin span'lerle çizilir, imleç bizim -->
+        <!-- Yazma alanı: input görünmez, metin span'lerle çizilir, imleç metin display içinde -->
         <div id="typing-area" class="typing-area">
-          <div id="caret" class="caret"></div>
-          <div id="text-display" class="text-display"></div>
+          <div id="text-display" class="text-display">
+            <div id="caret" class="caret"></div>
+          </div>
           <input
             type="text"
             id="typing-input"

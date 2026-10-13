@@ -52,6 +52,8 @@ Terminalde sunucunun çalıştığı yazısını gördükten sonra tarayıcını
   Kendi yerel IP adresinizi verin:  
   👉 `http://192.168.x.x:3000` *(Örn: `http://192.168.1.35:3000`)*
 
+*Admin paneline erişmek için (Ctrl+Shift+A) veya (Cmd+Shift+A)
+
 ---
 ---
 
@@ -108,3 +110,5 @@ Once you see the server running message in the terminal, open your browser:
 - **Invite friends on the same Wi-Fi network:**  
   Share your local LAN IP address:  
   👉 `http://192.168.x.x:3000` *(e.g. `http://192.168.1.35:3000`)*
+
+*For admin panel (Ctrl+Shift+A) or (Cmd+Shift+A)

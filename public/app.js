@@ -388,15 +388,21 @@
 
   /**
    * Metni kelime > harf hiyerarşisiyle çizer.
-   * state.charElements, metindeki karakter indeksiyle birebir eşleşir
-   * (boşluklar da ayrı bir .char span'idir), böylece skor mantığı değişmez.
+   * Kelimeler ayrı .word span'lerinde, boşluklar ise kelimelerin arasında doğal boşluk span'i (.char.space) olarak yer alır.
+   * Böylece kelimeler asla yapışmaz ve boşlukta imleç kelimenin bittiği yere pürüzsüzce oturur.
    */
   function renderText(text) {
     els.textDisplay.innerHTML = "";
-    els.textDisplay.scrollTop = 0;
     state.charElements = [];
 
-    let wordEl = null;
+    // İmleç elementi #text-display içinde yer alır
+    const caretEl = document.createElement("div");
+    caretEl.id = "caret";
+    caretEl.className = "caret";
+    els.textDisplay.appendChild(caretEl);
+    els.caret = caretEl;
+
+    let currentWord = null;
 
     for (let i = 0; i < text.length; i++) {
       const ch = text[i];
@@ -406,26 +412,33 @@
       state.charElements.push(span);
 
       if (ch === " ") {
-        // Boşluk kelimeyi kapatır ve satır kırılabilecek tek yerdir
-        wordEl = null;
-        els.textDisplay.appendChild(span);
-      } else {
-        if (!wordEl) {
-          wordEl = document.createElement("span");
-          wordEl.className = "word";
-          els.textDisplay.appendChild(wordEl);
+        // Boşluk karakteri: .word dışına değil, kelime ayırıcı olarak render edilir
+        span.classList.add("char-space");
+        // Boşluğun genişliğini açıkça belirt
+        span.innerHTML = "&nbsp;";
+        if (currentWord) {
+          currentWord.appendChild(span);
+          currentWord = null;
+        } else {
+          els.textDisplay.appendChild(span);
         }
-        wordEl.appendChild(span);
+      } else {
+        if (!currentWord) {
+          currentWord = document.createElement("span");
+          currentWord.className = "word";
+          els.textDisplay.appendChild(currentWord);
+        }
+        currentWord.appendChild(span);
       }
     }
 
-    // Yeni metinde imleç başa döner (font yüklenmesini de beklemek için bir kare ertele)
+    els.textDisplay.scrollTop = 0;
     requestAnimationFrame(updateCaret);
   }
 
   /**
-   * Özel imleci aktif harfin önüne taşır. CSS transition (left 0.1s) sayesinde
-   * harf geçişlerinde pürüzsüzce kayar. Metin 3 satırdan uzunsa satırlar kayar.
+   * Özel imleci aktif harfin tam önüne hizalar ve o sırada yazılan kelimeyi vurgular.
+   * Hedef span'in #text-display içindeki gerçek offset koordinatlarını alır.
    */
   let caretIdleTimer = null;
 
@@ -437,22 +450,45 @@
     const atEnd = idx >= chars.length;
     const target = atEnd ? chars[chars.length - 1] : chars[idx];
 
-    const display = els.textDisplay;
-    const lineHeight = parseFloat(getComputedStyle(display).lineHeight) || 38;
-    const baseTop = chars[0].offsetTop;
+    // 1. O an yazılan kelimeyi (.word.active-word) vurgula
+    const currentActiveWord = target.closest(".word");
+    const prevActiveWords = els.textDisplay.querySelectorAll(".word.active-word");
+    prevActiveWords.forEach((w) => {
+      if (w !== currentActiveWord) w.classList.remove("active-word");
+    });
+    if (currentActiveWord) {
+      currentActiveWord.classList.add("active-word");
+    }
 
-    // Aktif satırı bul; 2. satırdan sonrasında metni yukarı kaydır
-    const lineIndex = Math.round((target.offsetTop - baseTop) / lineHeight);
-    display.scrollTop = lineIndex >= 2 ? (lineIndex - 1) * lineHeight : 0;
+    // 2. İmlecin konumu (Hedef karakterin parent zincirindeki koordinatı)
+    const wordParent = target.offsetParent;
+    const isInsideWord = wordParent && wordParent.classList.contains("word");
+    const targetLeft = (isInsideWord ? wordParent.offsetLeft + target.offsetLeft : target.offsetLeft) + (atEnd ? target.offsetWidth : 0);
+    const targetTop = isInsideWord ? wordParent.offsetTop + target.offsetTop : target.offsetTop;
 
+    const targetHeight = target.offsetHeight || 38;
     const caretHeight = els.caret.offsetHeight || 30;
-    const left = target.offsetLeft + (atEnd ? target.offsetWidth : 0);
-    const top = target.offsetTop - display.scrollTop + (target.offsetHeight - caretHeight) / 2;
 
-    els.caret.style.left = `${left}px`;
-    els.caret.style.top = `${top}px`;
+    // Hedef satırın scroll durumunu yönet
+    const firstChar = chars[0];
+    const firstCharTop = firstChar.offsetParent && firstChar.offsetParent.classList.contains("word")
+      ? firstChar.offsetParent.offsetTop + firstChar.offsetTop
+      : firstChar.offsetTop;
 
-    // Yazarken imleç sabit, durunca yanıp söner
+    const currentLineOffset = targetTop - firstCharTop;
+    const lineHeight = targetHeight;
+
+    if (currentLineOffset >= lineHeight * 1.5) {
+      els.textDisplay.scrollTop = currentLineOffset - lineHeight;
+    } else {
+      els.textDisplay.scrollTop = 0;
+    }
+
+    // İmleci piksel hassasiyetiyle hizala (scroll farkını çıkar)
+    const topPos = (targetTop - els.textDisplay.scrollTop) + (targetHeight - caretHeight) / 2;
+    els.caret.style.transform = `translate3d(${targetLeft}px, ${topPos}px, 0)`;
+
+    // Yazarken imleç sabit kalsın, durunca yanıp sönsün
     els.caret.classList.add("typing");
     clearTimeout(caretIdleTimer);
     caretIdleTimer = setTimeout(() => els.caret.classList.remove("typing"), 600);
