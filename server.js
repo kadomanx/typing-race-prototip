@@ -494,6 +494,58 @@ io.on("connection", (socket) => {
     broadcastTvRooms();
   });
 
+  // ════════════════════════════════════════════════════════════
+  //  GİZLİ ADMİN PANELİ ETKİLEŞİMLERİ
+  // ════════════════════════════════════════════════════════════
+
+  // Skorboard Temizleme (Tek kategori veya hepsi)
+  socket.on("admin:clear-scores", ({ category }) => {
+    if (category === "ALL") {
+      leaderboard = createEmptyBoard();
+      console.log("🛠️ [Admin] Tüm skorlar temizlendi.");
+    } else if (VALID_MODES.includes(category)) {
+      leaderboard[category] = [];
+      console.log(`🛠️ [Admin] ${category} skorları temizlendi.`);
+    }
+    saveScores();
+    io.emit("leaderboard:update", leaderboard);
+    socket.emit("admin:action-success", { message: "Skorboard başarıyla güncellendi." });
+  });
+
+  // Test Verisi Ekleme
+  socket.on("admin:add-test-score", ({ nickname, wpm, accuracy, mode }) => {
+    const category = VALID_MODES.includes(mode) ? mode : "SOLO_TEXT";
+    const entry = {
+      nickname: (nickname || "TestOyuncu").trim().substring(0, 20),
+      wpm: Math.round(Number(wpm) || 85),
+      accuracy: Math.round(Number(accuracy) || 98),
+      mode: category,
+      timestamp: new Date().toISOString(),
+    };
+    leaderboard[category].push(entry);
+    sortCategory(category);
+    if (leaderboard[category].length > MAX_SCORES_PER_CATEGORY) {
+      leaderboard[category] = leaderboard[category].slice(0, MAX_SCORES_PER_CATEGORY);
+    }
+    saveScores();
+    io.emit("leaderboard:update", leaderboard);
+    socket.emit("admin:action-success", { message: `Test skoru eklendi: ${entry.nickname} (${entry.wpm} WPM)` });
+  });
+
+  // Odayı Kapatma / Sıfırlama
+  socket.on("admin:close-room", ({ roomId }) => {
+    if (roomId && rooms.has(roomId)) {
+      const room = rooms.get(roomId);
+      if (room.countdownTimer) clearInterval(room.countdownTimer);
+      io.to(roomId).emit("room:error", { message: "Masa yönetici tarafından sıfırlandı." });
+      io.in(roomId).socketsLeave(roomId);
+      rooms.delete(roomId);
+      broadcastTvRooms();
+      console.log(`🛠️ [Admin] ${roomId} odası kapatıldı.`);
+      socket.emit("admin:action-success", { message: `${roomId} masası kapatıldı.` });
+    }
+  });
+
   // Bağlantı Kesilme
   socket.on("disconnect", () => {
     handlePlayerLeave(socket);

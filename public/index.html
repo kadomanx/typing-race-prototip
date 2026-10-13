@@ -24,6 +24,61 @@
   </div>
 
   <!-- ══════════════════════════════════════════
+       GİZLİ ADMİN PANELİ (Ctrl + Shift + A)
+       ══════════════════════════════════════════ -->
+  <div id="admin-modal" class="admin-modal" style="display: none;">
+    <div class="admin-box">
+      <div class="admin-header">
+        <div class="admin-title">
+          <span class="admin-badge">YÖNETİCİ</span>
+          <h3>🛠️ Stant Admin Paneli</h3>
+        </div>
+        <button id="btn-admin-close" class="admin-close-btn">&times;</button>
+      </div>
+
+      <div class="admin-body">
+        <!-- 1. Skorboard Sıfırlama -->
+        <div class="admin-section">
+          <h4>🏆 Skorboard Yönetimi</h4>
+          <p class="admin-help">Kategori bazlı veya tüm liderlik tablosunu temizler (canlı broadcast edilir).</p>
+          <div class="admin-btn-grid">
+            <button class="btn-admin-action" data-action="clear-cat" data-cat="SOLO_WORDS">📝 Kelime Sıfırla</button>
+            <button class="btn-admin-action" data-action="clear-cat" data-cat="SOLO_TEXT">📖 Metin Sıfırla</button>
+            <button class="btn-admin-action" data-action="clear-cat" data-cat="SOLO_CODE">💻 Kod Sıfırla</button>
+            <button class="btn-admin-action" data-action="clear-cat" data-cat="MULTIPLAYER_VS">🏁 Arena Sıfırla</button>
+          </div>
+          <button id="btn-admin-clear-all" class="btn-admin-danger">🔥 TÜM LİDERLİK TABLOSUNU SIFIRLA</button>
+        </div>
+
+        <!-- 2. Aktif Oda Yönetimi -->
+        <div class="admin-section">
+          <h4>🏟️ Aktif Masalar / Odalar</h4>
+          <p class="admin-help">Askıda kalan veya takılan masaları sıfırlayıp kapatabilirsiniz.</p>
+          <div id="admin-rooms-list" class="admin-rooms-list">
+            <p class="admin-muted">Açık masa bulunmuyor.</p>
+          </div>
+        </div>
+
+        <!-- 3. Test Verisi Ekleme -->
+        <div class="admin-section">
+          <h4>🧪 Test Skoru Ekle</h4>
+          <div class="admin-test-form">
+            <input type="text" id="admin-test-nick" placeholder="Rumuz (örn: StandKonuğu)" />
+            <input type="number" id="admin-test-wpm" placeholder="WPM" value="88" min="20" max="180" />
+            <select id="admin-test-mode">
+              <option value="MULTIPLAYER_VS">🏁 Arena</option>
+              <option value="SOLO_WORDS">📝 Kelime</option>
+              <option value="SOLO_TEXT">📖 Metin</option>
+              <option value="SOLO_CODE">💻 Kod</option>
+            </select>
+            <button id="btn-admin-add-test" class="btn-admin-primary">+ Ekle</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════
        EKRAN 1: Giriş (Rumuz + Mod Seçimi)
        ══════════════════════════════════════════ -->
   <section id="screen-welcome" class="screen active">

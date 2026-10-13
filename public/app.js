@@ -70,6 +70,16 @@
     btnToggleSound: $("#btn-toggle-sound"),
     anticheatModal: $("#anticheat-modal"),
     btnAnticheatDismiss: $("#btn-anticheat-dismiss"),
+
+    // Gizli Admin Paneli
+    adminModal: $("#admin-modal"),
+    btnAdminClose: $("#btn-admin-close"),
+    btnAdminClearAll: $("#btn-admin-clear-all"),
+    adminRoomsList: $("#admin-rooms-list"),
+    adminTestNick: $("#admin-test-nick"),
+    adminTestWpm: $("#admin-test-wpm"),
+    adminTestMode: $("#admin-test-mode"),
+    btnAdminAddTest: $("#btn-admin-add-test"),
   };
 
   // ── Mod Etiketleri ──────────────────────────────────────────
@@ -748,6 +758,120 @@
       updateSoundButtonUI();
     });
   }
+
+  // ══════════════════════════════════════════════════════════════
+  //  9. GİZLİ ADMİN PANELİ (HOTKEY: Ctrl+Shift+A veya Alt+Shift+K)
+  // ══════════════════════════════════════════════════════════════
+
+  let activeRoomsCache = [];
+
+  function openAdminModal() {
+    if (els.adminModal) {
+      els.adminModal.style.display = "flex";
+      renderAdminRooms();
+    }
+  }
+
+  function closeAdminModal() {
+    if (els.adminModal) {
+      els.adminModal.style.display = "none";
+    }
+  }
+
+  // Gizli Kısayol Dinleyicisi
+  window.addEventListener("keydown", (e) => {
+    // Ctrl + Shift + A (veya Mac'te Cmd + Shift + A) ya da Alt + Shift + K
+    const isCtrlOrCmd = e.ctrlKey || e.metaKey;
+    if ((isCtrlOrCmd && e.shiftKey && (e.key === "A" || e.key === "a")) ||
+        (e.altKey && e.shiftKey && (e.key === "K" || e.key === "k"))) {
+      e.preventDefault();
+      if (els.adminModal && els.adminModal.style.display === "flex") {
+        closeAdminModal();
+      } else {
+        openAdminModal();
+      }
+    } else if (e.key === "Escape" && els.adminModal && els.adminModal.style.display === "flex") {
+      closeAdminModal();
+    }
+  });
+
+  if (els.btnAdminClose) {
+    els.btnAdminClose.addEventListener("click", closeAdminModal);
+  }
+
+  // Kategori Bazlı Skor Sıfırlama Butonları
+  $$(".btn-admin-action[data-action='clear-cat']").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const cat = btn.dataset.cat;
+      if (confirm(`${cat} skorboardı sıfırlansın mı?`)) {
+        socket.emit("admin:clear-scores", { category: cat });
+      }
+    });
+  });
+
+  // Tüm Skorları Sıfırlama Butonu
+  if (els.btnAdminClearAll) {
+    els.btnAdminClearAll.addEventListener("click", () => {
+      if (confirm("DİKKAT! Tüm liderlik tablosu tamamen silinecek. Emin misiniz?")) {
+        socket.emit("admin:clear-scores", { category: "ALL" });
+      }
+    });
+  }
+
+  // Test Verisi Ekleme
+  if (els.btnAdminAddTest) {
+    els.btnAdminAddTest.addEventListener("click", () => {
+      const nick = els.adminTestNick.value.trim() || "TestYarışçı";
+      const wpm = Number(els.adminTestWpm.value) || 85;
+      const mode = els.adminTestMode.value;
+
+      socket.emit("admin:add-test-score", {
+        nickname: nick,
+        wpm,
+        accuracy: 98,
+        mode,
+      });
+
+      els.adminTestNick.value = "";
+    });
+  }
+
+  // Aktif Odaları Dinleme & Listeleme
+  socket.on("tv:rooms-update", (rooms) => {
+    activeRoomsCache = rooms || [];
+    renderAdminRooms();
+  });
+
+  function renderAdminRooms() {
+    if (!els.adminRoomsList) return;
+    if (!activeRoomsCache || activeRoomsCache.length === 0) {
+      els.adminRoomsList.innerHTML = '<p class="admin-muted">Açık masa bulunmuyor.</p>';
+      return;
+    }
+
+    els.adminRoomsList.innerHTML = "";
+    activeRoomsCache.forEach((room) => {
+      const row = document.createElement("div");
+      row.className = "admin-room-item";
+      row.innerHTML = `
+        <div>
+          <strong>🏟️ ${escapeHtml(room.id)}</strong>
+          <span style="color: var(--text-muted); font-size: 0.8rem;">(${room.playerCount} Oyuncu - Durum: ${room.status})</span>
+        </div>
+        <button class="btn-room-close" data-room="${escapeHtml(room.id)}">Masayı Kapat</button>
+      `;
+      row.querySelector(".btn-room-close").addEventListener("click", () => {
+        if (confirm(`${room.id} masası zorla kapatılsın mı?`)) {
+          socket.emit("admin:close-room", { roomId: room.id });
+        }
+      });
+      els.adminRoomsList.appendChild(row);
+    });
+  }
+
+  socket.on("admin:action-success", ({ message }) => {
+    alert("Yönetici Bildirimi: " + message);
+  });
 
   socket.on("connect", () => {
     console.log("✅ Sunucuya bağlanıldı:", socket.id);
