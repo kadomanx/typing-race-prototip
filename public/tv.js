@@ -24,14 +24,33 @@
     leaderboardBody: $("#tv-leaderboard-body"),
     tableEmpty: $("#tv-table-empty"),
     tickerContent: $("#tv-ticker-content"),
+    btnTheme: $("#btn-tv-theme"),
   };
+
+  // ── Tema Yönetimi (Light / Dark) ────────────────────────────
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("typing_race_theme", theme);
+    if (els.btnTheme) {
+      els.btnTheme.textContent = theme === "dark" ? "Açık tema" : "Koyu tema";
+    }
+  }
+
+  applyTheme(document.documentElement.getAttribute("data-theme") || "dark");
+
+  if (els.btnTheme) {
+    els.btnTheme.addEventListener("click", () => {
+      const current = document.documentElement.getAttribute("data-theme");
+      applyTheme(current === "dark" ? "light" : "dark");
+    });
+  }
 
   // ── Kategori Bilgileri ──────────────────────────────────────
   const CATEGORIES = [
-    { key: "MULTIPLAYER_VS", name: "🏁 ARENA (VS)" },
-    { key: "SOLO_WORDS",     name: "📝 KELİME AKIŞI" },
-    { key: "SOLO_TEXT",      name: "📖 TAM METİN" },
-    { key: "SOLO_CODE",      name: "💻 KOD SNIPPET" },
+    { key: "MULTIPLAYER_VS", name: "Arena" },
+    { key: "SOLO_WORDS",     name: "Kelime akışı" },
+    { key: "SOLO_TEXT",      name: "Tam metin" },
+    { key: "SOLO_CODE",      name: "Kod snippet" },
   ];
 
   let currentCatIndex = 0;
@@ -86,7 +105,7 @@
       const statusMap = {
         waiting:   { label: "Beklemede", cls: "status-waiting" },
         countdown: { label: "Geri Sayım", cls: "status-countdown" },
-        racing:    { label: "⚡ CANLI YARIŞ", cls: "status-racing" },
+        racing:    { label: "Canlı yarış", cls: "status-racing" },
         finished:  { label: "Bitti", cls: "status-finished" },
       };
 
@@ -95,7 +114,7 @@
       card.innerHTML = `
         <div class="tv-room-card-header">
           <div class="room-title-badge">
-            <span>🏟️ ${escapeHtml(room.id)}</span>
+            <span>${escapeHtml(room.id)}</span>
             <small style="color: var(--tv-muted); font-size: 0.8rem;">(${room.players.length} Oyuncu)</small>
           </div>
           <span class="room-status-badge ${st.cls}">${st.label}</span>
@@ -117,7 +136,7 @@
         row.innerHTML = `
           <div class="tv-track-info">
             <span class="tv-player-name">
-              ${p.isHost ? "👑" : "👤"} ${escapeHtml(p.nickname)}
+              ${escapeHtml(p.nickname)}
               <span id="tv-rank-tag-${room.id}-${p.id}"></span>
             </span>
             <div class="tv-track-stats">
@@ -127,9 +146,9 @@
           </div>
           <div class="tv-track-line">
             <div class="tv-progress-fill" id="tv-fill-${room.id}-${p.id}" style="width: ${cleanPct}%">
-              <span class="tv-track-car" id="tv-car-${room.id}-${p.id}">🏎️</span>
+              <span class="tv-track-car" id="tv-car-${room.id}-${p.id}"></span>
             </div>
-            <span class="tv-finish-flag">🏁</span>
+            
           </div>
         `;
         tracksList.appendChild(row);
@@ -155,13 +174,13 @@
   socket.on("tv:player-finished", ({ roomId, playerId, rank, nickname }) => {
     const carEl = $(`#tv-car-${roomId}-${playerId}`);
     const tagEl = $(`#tv-rank-tag-${roomId}-${playerId}`);
-    const medals = ["🥇 1.", "🥈 2.", "🥉 3."];
+    const medals = ["1.", "2.", "3."];
     const badge = rank <= 3 ? medals[rank - 1] : `#${rank}`;
 
-    if (carEl) carEl.textContent = rank === 1 ? "🥇" : "🏁";
+    if (carEl) carEl.textContent = "";
     if (tagEl) {
       tagEl.textContent = ` (${badge})`;
-      tagEl.style.color = rank === 1 ? "#ffd700" : "#00d2d3";
+      tagEl.style.color = "var(--accent)";
       tagEl.style.fontWeight = "800";
     }
   });
@@ -197,7 +216,7 @@
 
     scores.forEach((entry, index) => {
       const tr = document.createElement("tr");
-      const medals = ["🥇", "🥈", "🥉"];
+      const medals = ["1", "2", "3"];
       const rank = index < 3 ? medals[index] : index + 1;
 
       tr.innerHTML = `
@@ -253,7 +272,7 @@
       : "Henüz yok";
 
     els.tickerContent.textContent =
-      `🏆 GÜNÜN LİDERLERİ: [Arena Şampiyonu]: ${topArena}  |  [Kelime Rekoru]: ${topWord}  |  [Metin Lideri]: ${topText}  |  [Kod Canavarı]: ${topCode}  •  Stant masalarına oturup yarışa katılabilirsiniz!`;
+      `Günün liderleri: [Arena Şampiyonu]: ${topArena}  |  [Kelime Rekoru]: ${topWord}  |  [Metin Lideri]: ${topText}  |  [Kod Canavarı]: ${topCode}   ·  Masalara oturup yarışa katılabilirsiniz.`;
   }
 
   function escapeHtml(text) {

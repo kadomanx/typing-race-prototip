@@ -1,309 +1,282 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>⌨️ Typing Race – Hızlı Yazma Oyunu</title>
+  <title>typing race</title>
+
+  <!-- Tema, sayfa çizilmeden önce uygulanır (yanıp sönmeyi önler) -->
+  <script>
+    (function () {
+      var saved = localStorage.getItem("typing_race_theme");
+      var theme = saved || (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+
+  <!-- Yazı tipleri (çevrimdışı LAN'da sistem fontlarına düşer) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <!-- Sabit Üst Kontroller (Ses Aç/Kapat & TV Ekranı) -->
-  <div class="fixed-top-bar">
-    <button id="btn-toggle-sound" class="sound-toggle-btn" title="Sesi Aç / Kapat">🔊</button>
-    <a href="/tv.html" target="_blank" class="tv-link-badge">📺 TV Ekranı</a>
-  </div>
+  <!-- ── Üst Bar ───────────────────────────────────────────── -->
+  <header class="app-header fade-on-focus">
+    <div class="brand">typing<span>race</span></div>
+    <nav class="header-actions">
+      <a href="/tv.html" target="_blank" rel="noopener" class="header-btn">TV ekranı</a>
+      <button id="btn-toggle-sound" class="header-btn" type="button" title="Sesi aç / kapat">Ses: açık</button>
+      <button id="btn-toggle-theme" class="header-btn" type="button" title="Temayı değiştir">Açık tema</button>
+    </nav>
+  </header>
 
-  <!-- Anti-Cheat Odak Kaybı Modalı -->
-  <div id="anticheat-modal" class="anticheat-modal" style="display: none;">
-    <div class="anticheat-box">
-      <span class="anticheat-icon">🚨</span>
-      <h3>Odak Kaybı Tespit Edildi!</h3>
-      <p id="anticheat-msg">Oyun esnasında başka bir sekmeye geçildi veya tarayıcı odağı kaybedildi. Adil yarış kuralı gereği bu turun skoru geçersiz sayıldı.</p>
-      <button id="btn-anticheat-dismiss" class="btn-primary">Yeniden Başla</button>
+  <!-- ── Anti-Cheat Modalı ─────────────────────────────────── -->
+  <div id="anticheat-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-box modal-danger">
+      <h3>Odak kaybı tespit edildi</h3>
+      <p id="anticheat-msg">Oyun sırasında başka bir sekmeye geçildi veya tarayıcı odağı kaybedildi. Adil yarış kuralı gereği bu turun skoru geçersiz sayıldı.</p>
+      <button id="btn-anticheat-dismiss" class="btn-primary" type="button">Yeniden başla</button>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════
-       GİZLİ ADMİN PANELİ (Ctrl + Shift + A)
-       ══════════════════════════════════════════ -->
-  <div id="admin-modal" class="admin-modal" style="display: none;">
-    <div class="admin-box">
+  <!-- ── Gizli Admin Paneli (Ctrl + Shift + A / Alt + Shift + K) ── -->
+  <div id="admin-modal" class="modal-backdrop" style="display: none;">
+    <div class="modal-box admin-box">
       <div class="admin-header">
         <div class="admin-title">
-          <span class="admin-badge">YÖNETİCİ</span>
-          <h3>🛠️ Stant Admin Paneli</h3>
+          <span class="admin-badge">admin</span>
+          <h3>Stant yönetimi</h3>
         </div>
-        <button id="btn-admin-close" class="admin-close-btn">&times;</button>
+        <button id="btn-admin-close" class="admin-close-btn" type="button" aria-label="Kapat">&times;</button>
       </div>
 
-      <div class="admin-body">
-        <!-- 1. Skorboard Sıfırlama -->
-        <div class="admin-section">
-          <h4>🏆 Skorboard Yönetimi</h4>
-          <p class="admin-help">Kategori bazlı veya tüm liderlik tablosunu temizler (canlı broadcast edilir).</p>
-          <div class="admin-btn-grid">
-            <button class="btn-admin-action" data-action="clear-cat" data-cat="SOLO_WORDS">📝 Kelime Sıfırla</button>
-            <button class="btn-admin-action" data-action="clear-cat" data-cat="SOLO_TEXT">📖 Metin Sıfırla</button>
-            <button class="btn-admin-action" data-action="clear-cat" data-cat="SOLO_CODE">💻 Kod Sıfırla</button>
-            <button class="btn-admin-action" data-action="clear-cat" data-cat="MULTIPLAYER_VS">🏁 Arena Sıfırla</button>
-          </div>
-          <button id="btn-admin-clear-all" class="btn-admin-danger">🔥 TÜM LİDERLİK TABLOSUNU SIFIRLA</button>
+      <div class="admin-section">
+        <h4>Skorboard</h4>
+        <p class="admin-help">Kategori bazlı veya tüm liderlik tablosunu temizler. Değişiklik tüm ekranlara anında yayınlanır.</p>
+        <div class="admin-btn-grid">
+          <button class="btn-admin-action" data-action="clear-cat" data-cat="SOLO_WORDS" type="button">Kelime sıfırla</button>
+          <button class="btn-admin-action" data-action="clear-cat" data-cat="SOLO_TEXT" type="button">Metin sıfırla</button>
+          <button class="btn-admin-action" data-action="clear-cat" data-cat="SOLO_CODE" type="button">Kod sıfırla</button>
+          <button class="btn-admin-action" data-action="clear-cat" data-cat="MULTIPLAYER_VS" type="button">Arena sıfırla</button>
         </div>
+        <button id="btn-admin-clear-all" class="btn-admin-danger" type="button">Tüm liderlik tablosunu sıfırla</button>
+      </div>
 
-        <!-- 2. Aktif Oda Yönetimi -->
-        <div class="admin-section">
-          <h4>🏟️ Aktif Masalar / Odalar</h4>
-          <p class="admin-help">Askıda kalan veya takılan masaları sıfırlayıp kapatabilirsiniz.</p>
-          <div id="admin-rooms-list" class="admin-rooms-list">
-            <p class="admin-muted">Açık masa bulunmuyor.</p>
-          </div>
+      <div class="admin-section">
+        <h4>Aktif masalar</h4>
+        <p class="admin-help">Takılan veya askıda kalan masaları kapatabilirsiniz.</p>
+        <div id="admin-rooms-list" class="admin-rooms-list">
+          <p class="admin-muted">Açık masa bulunmuyor.</p>
         </div>
+      </div>
 
-        <!-- 3. Test Verisi Ekleme -->
-        <div class="admin-section">
-          <h4>🧪 Test Skoru Ekle</h4>
-          <div class="admin-test-form">
-            <input type="text" id="admin-test-nick" placeholder="Rumuz (örn: StandKonuğu)" />
-            <input type="number" id="admin-test-wpm" placeholder="WPM" value="88" min="20" max="180" />
-            <select id="admin-test-mode">
-              <option value="MULTIPLAYER_VS">🏁 Arena</option>
-              <option value="SOLO_WORDS">📝 Kelime</option>
-              <option value="SOLO_TEXT">📖 Metin</option>
-              <option value="SOLO_CODE">💻 Kod</option>
-            </select>
-            <button id="btn-admin-add-test" class="btn-admin-primary">+ Ekle</button>
-          </div>
+      <div class="admin-section">
+        <h4>Test skoru ekle</h4>
+        <div class="admin-test-form">
+          <input type="text" id="admin-test-nick" placeholder="İsim" />
+          <input type="number" id="admin-test-wpm" placeholder="WPM" value="88" min="20" max="180" />
+          <select id="admin-test-mode">
+            <option value="MULTIPLAYER_VS">Arena</option>
+            <option value="SOLO_WORDS">Kelime</option>
+            <option value="SOLO_TEXT">Metin</option>
+            <option value="SOLO_CODE">Kod</option>
+          </select>
+          <button id="btn-admin-add-test" class="btn-admin-primary" type="button">Ekle</button>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- ══════════════════════════════════════════
-       EKRAN 1: Giriş (Rumuz + Mod Seçimi)
-       ══════════════════════════════════════════ -->
-  <section id="screen-welcome" class="screen active">
-    <div class="card">
-      <h1>⌨️ Typing Race</h1>
-      <p class="subtitle">Hızlı Yazma Klavye Oyunu</p>
+  <main class="app-main">
+    <!-- ═══ EKRAN 1: Giriş ═══ -->
+    <section id="screen-welcome" class="screen active">
+      <div class="card">
+        <h1>Hızlı Yazma Yarışı</h1>
+        <p class="subtitle">İsmini yaz, modunu seç, başla.</p>
 
-      <div class="form-group">
-        <label for="nickname-input">Rumuzun</label>
-        <input
-          type="text"
-          id="nickname-input"
-          placeholder="Adını gir…"
-          maxlength="20"
-          autocomplete="off"
-        />
+        <div class="form-group">
+          <label for="nickname-input">İsim</label>
+          <input type="text" id="nickname-input" placeholder="Adını gir" maxlength="20" autocomplete="off" />
+        </div>
+
+        <div class="form-group">
+          <label>Mod</label>
+          <div class="mode-selector">
+            <button class="mode-btn active" data-mode="SOLO_WORDS" type="button">
+              <span class="mode-title">Kelime akışı</span>
+              <span class="mode-desc">Sade kelimeler, noktalama yok</span>
+            </button>
+            <button class="mode-btn" data-mode="SOLO_TEXT" type="button">
+              <span class="mode-title">Tam metin</span>
+              <span class="mode-desc">Cümleler, noktalama ve büyük harf</span>
+            </button>
+            <button class="mode-btn" data-mode="SOLO_CODE" type="button">
+              <span class="mode-title">Kod snippet</span>
+              <span class="mode-desc">Programlama sözdizimi ve semboller</span>
+            </button>
+            <button class="mode-btn" data-mode="MULTIPLAYER_VS" type="button">
+              <span class="mode-title">Multiplayer arena</span>
+              <span class="mode-desc">Ortak metin, canlı rakipler</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="form-group" id="arena-room-group" style="display: none;">
+          <label>Masa</label>
+          <div class="room-choice-toggle">
+            <label class="radio-label">
+              <input type="radio" name="roomChoice" value="auto" checked id="radio-auto-room" />
+              <span>Otomatik boş masa</span>
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="roomChoice" value="custom" id="radio-custom-room" />
+              <span>Özel masa kodu</span>
+            </label>
+          </div>
+          <input type="text" id="room-input" value="" placeholder="Örn: MASA-1" maxlength="15" autocomplete="off" style="display: none; margin-top: 0.5rem;" />
+        </div>
+
+        <button id="btn-start" class="btn-primary" type="button" disabled>Başla</button>
       </div>
+    </section>
 
-      <!-- Mod Seçimi -->
-      <div class="form-group">
-        <label>Oyun Modu</label>
-        <div class="mode-selector">
-          <button class="mode-btn active" data-mode="SOLO_WORDS">
-            <span class="mode-icon">📝</span>
-            <span class="mode-title">Kelime Akışı</span>
-            <span class="mode-desc">Sade kelimeler, noktalama yok</span>
-          </button>
-          <button class="mode-btn" data-mode="SOLO_TEXT">
-            <span class="mode-icon">📖</span>
-            <span class="mode-title">Tam Metin</span>
-            <span class="mode-desc">Cümleler, noktalama ve büyük harf</span>
-          </button>
-          <button class="mode-btn" data-mode="SOLO_CODE">
-            <span class="mode-icon">💻</span>
-            <span class="mode-title">Kod Snippet</span>
-            <span class="mode-desc">Programlama sözdizimi ve semboller</span>
-          </button>
-          <button class="mode-btn" data-mode="MULTIPLAYER_VS">
-            <span class="mode-icon">🏁</span>
-            <span class="mode-title">Multiplayer Arena (1v1v1)</span>
-            <span class="mode-desc">Ortak metin, canlı rakipler & yarış pisti</span>
-          </button>
+    <!-- ═══ EKRAN 2: Lobi ═══ -->
+    <section id="screen-lobby" class="screen">
+      <div class="card lobby-card">
+        <div class="lobby-header">
+          <h2>Arena lobisi</h2>
+          <span class="lobby-room-badge" id="lobby-room-name">MASA-1</span>
+        </div>
+        <p class="subtitle">Oyuncular toplanıyor. Host yarışı başlatır.</p>
+
+        <div class="lobby-players-container">
+          <label>Masadaki yarışçılar</label>
+          <div id="lobby-player-list" class="lobby-player-list"></div>
+        </div>
+
+        <div class="lobby-actions">
+          <button id="btn-start-race" class="btn-primary" type="button" style="display: none;">Yarışı başlat</button>
+          <div id="lobby-waiting-msg" class="lobby-waiting-msg">Masa kurucusunun yarışı başlatması bekleniyor…</div>
+          <button id="btn-leave-lobby" class="btn-secondary" type="button">Masadan ayrıl</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══ EKRAN 3: Oyun ═══ -->
+    <section id="screen-game" class="screen">
+      <div id="countdown-overlay" class="countdown-overlay" style="display: none;">
+        <div class="countdown-box">
+          <span class="countdown-title">yarış başlıyor</span>
+          <div id="countdown-number" class="countdown-number">3</div>
         </div>
       </div>
 
-      <!-- Multiplayer seçilirse oda eşleşme seçenekleri -->
-      <div class="form-group" id="arena-room-group" style="display: none;">
-        <label>Arena Masası</label>
-        <div class="room-choice-toggle">
-          <label class="radio-label">
-            <input type="radio" name="roomChoice" value="auto" checked id="radio-auto-room" />
-            <span>🚀 Otomatik Boş Masa (Önerilen)</span>
-          </label>
-          <label class="radio-label">
-            <input type="radio" name="roomChoice" value="custom" id="radio-custom-room" />
-            <span>🔢 Özel Masa Kodu Belirt</span>
-          </label>
+      <div class="game-wrap">
+        <div class="game-mode-badge fade-on-focus" id="game-mode-badge"></div>
+
+        <!-- Canlı yarış pisti -->
+        <div id="arena-track-container" class="arena-track-container" style="display: none;">
+          <div class="arena-track-header">
+            <span>Canlı yarış</span>
+            <span id="arena-live-leader" class="live-leader-badge">Yarış başladı</span>
+          </div>
+          <div id="arena-tracks" class="arena-tracks"></div>
         </div>
 
-        <input
-          type="text"
-          id="room-input"
-          value=""
-          placeholder="Örn: MASA-1, FINAL-1"
-          maxlength="15"
-          autocomplete="off"
-          style="display: none; margin-top: 0.5rem;"
-        />
+        <!-- Anlık istatistikler -->
+        <div class="game-header">
+          <div class="stat-box">
+            <span class="stat-label">wpm</span>
+            <span id="stat-wpm" class="stat-value">0</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">doğruluk</span>
+            <span id="stat-accuracy" class="stat-value">100%</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">süre</span>
+            <span id="stat-timer" class="stat-value">0s</span>
+          </div>
+        </div>
+
+        <!-- Yazma alanı: input görünmez, metin span'lerle çizilir, imleç bizim -->
+        <div id="typing-area" class="typing-area">
+          <div id="caret" class="caret"></div>
+          <div id="text-display" class="text-display"></div>
+          <input
+            type="text"
+            id="typing-input"
+            class="typing-input"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            spellcheck="false"
+            aria-label="Yazma alanı"
+          />
+        </div>
+
+        <p class="typing-hint fade-on-focus">Yazmaya başlamak için doğrudan klavyeye bas.</p>
       </div>
+    </section>
 
-      <button id="btn-start" class="btn-primary" disabled>Oyuna Başla</button>
-    </div>
-  </section>
+    <!-- ═══ EKRAN 4: Sonuç ═══ -->
+    <section id="screen-result" class="screen">
+      <div class="card result-card">
+        <h2 id="result-title">Oyun bitti</h2>
+        <div class="result-mode-badge" id="result-mode-badge"></div>
 
-  <!-- ══════════════════════════════════════════
-       EKRAN 2: Multiplayer Lobi Ekranı
-       ══════════════════════════════════════════ -->
-  <section id="screen-lobby" class="screen">
-    <div class="card lobby-card">
-      <div class="lobby-header">
-        <h2>🏟️ Arena Bekleme Lobisi</h2>
-        <span class="lobby-room-badge" id="lobby-room-name">MASA-1</span>
-      </div>
-      <p class="subtitle">Oyuncular toplanıyor, host yarışı başlatabilir!</p>
+        <div id="arena-rank-badge" class="arena-rank-badge" style="display: none;"></div>
 
-      <div class="lobby-players-container">
-        <label>Masadaki Yarışçılar</label>
-        <div id="lobby-player-list" class="lobby-player-list">
-          <!-- Dinamik oyuncu kartları -->
+        <div class="result-stats">
+          <div class="result-item">
+            <span class="result-label">wpm</span>
+            <span id="result-wpm" class="result-value">0</span>
+          </div>
+          <div class="result-item">
+            <span class="result-label">doğruluk</span>
+            <span id="result-accuracy" class="result-value">0%</span>
+          </div>
+        </div>
+
+        <div id="arena-podium-container" class="arena-podium-container" style="display: none;">
+          <h4>Maç sıralaması</h4>
+          <div id="arena-podium-list" class="arena-podium-list"></div>
+        </div>
+
+        <div class="result-actions">
+          <button id="btn-play-again" class="btn-primary" type="button">Tekrar oyna</button>
+          <button id="btn-return-lobby" class="btn-secondary" type="button" style="display: none;">Lobiye dön</button>
         </div>
       </div>
+    </section>
+  </main>
 
-      <div class="lobby-actions">
-        <button id="btn-start-race" class="btn-primary" style="display: none;">🏁 Yarışı Başlat</button>
-        <div id="lobby-waiting-msg" class="lobby-waiting-msg">
-          ⏳ Masa kurucusunun yarışı başlatması bekleniyor…
-        </div>
-        <button id="btn-leave-lobby" class="btn-secondary">Masadan Ayrıl</button>
-      </div>
-    </div>
-  </section>
+  <!-- ── Skorboard ─────────────────────────────────────────── -->
+  <aside id="leaderboard-panel" class="leaderboard-panel fade-on-focus">
+    <h3>Liderlik tablosu</h3>
 
-  <!-- ══════════════════════════════════════════
-       EKRAN 3: Oyun Alanı (Solo & Arena)
-       ══════════════════════════════════════════ -->
-  <section id="screen-game" class="screen">
-    <!-- Geri Sayım Katmanı (Countdown Overlay) -->
-    <div id="countdown-overlay" class="countdown-overlay" style="display: none;">
-      <div class="countdown-box">
-        <span class="countdown-title">YARIŞ BAŞLIYOR</span>
-        <div id="countdown-number" class="countdown-number">3</div>
-      </div>
-    </div>
-
-    <!-- Aktif mod etiketi -->
-    <div class="game-mode-badge" id="game-mode-badge"></div>
-
-    <!-- Canlı Yarış Pisti (Multiplayer Kulvarları) -->
-    <div id="arena-track-container" class="arena-track-container" style="display: none;">
-      <div class="arena-track-header">
-        <span>🏁 CANLI YARIŞ PİSTİ</span>
-        <span id="arena-live-leader" class="live-leader-badge">Yarış Başladı</span>
-      </div>
-      <div id="arena-tracks" class="arena-tracks">
-        <!-- Odadaki her yarışçı için canlı kulvar -->
-      </div>
-    </div>
-
-    <div class="game-header">
-      <div class="stat-box">
-        <span class="stat-label">WPM</span>
-        <span id="stat-wpm" class="stat-value">0</span>
-      </div>
-      <div class="stat-box">
-        <span class="stat-label">Doğruluk</span>
-        <span id="stat-accuracy" class="stat-value">100%</span>
-      </div>
-      <div class="stat-box">
-        <span class="stat-label">Süre</span>
-        <span id="stat-timer" class="stat-value">0s</span>
-      </div>
-    </div>
-
-    <!-- Yazılacak metin -->
-    <div id="text-display" class="text-display"></div>
-
-    <!-- Kullanıcı giriş alanı -->
-    <input
-      type="text"
-      id="typing-input"
-      class="typing-input"
-      placeholder="Yazmaya başla…"
-      autocomplete="off"
-      autocorrect="off"
-      autocapitalize="off"
-      spellcheck="false"
-    />
-  </section>
-
-  <!-- ══════════════════════════════════════════
-       EKRAN 4: Sonuç
-       ══════════════════════════════════════════ -->
-  <section id="screen-result" class="screen">
-    <div class="card result-card">
-      <h2 id="result-title">🏁 Oyun Bitti!</h2>
-      <div class="result-mode-badge" id="result-mode-badge"></div>
-
-      <!-- Arena Derece Rozeti -->
-      <div id="arena-rank-badge" class="arena-rank-badge" style="display: none;"></div>
-
-      <div class="result-stats">
-        <div class="result-item">
-          <span class="result-label">WPM</span>
-          <span id="result-wpm" class="result-value">0</span>
-        </div>
-        <div class="result-item">
-          <span class="result-label">Doğruluk</span>
-          <span id="result-accuracy" class="result-value">0%</span>
-        </div>
-      </div>
-
-      <!-- Arena Podyumu (Multiplayer Sonuç Tablosu) -->
-      <div id="arena-podium-container" class="arena-podium-container" style="display: none;">
-        <h4>🏆 Maç Sıralaması</h4>
-        <div id="arena-podium-list" class="arena-podium-list"></div>
-      </div>
-
-      <div class="result-actions">
-        <button id="btn-play-again" class="btn-primary">Tekrar Oyna</button>
-        <button id="btn-return-lobby" class="btn-secondary" style="display: none;">Lobiye Dön</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- ══════════════════════════════════════════
-       SKORBOARD (Her ekranda görünür)
-       ══════════════════════════════════════════ -->
-  <aside id="leaderboard-panel" class="leaderboard-panel">
-    <h3>🏆 Liderlik Tablosu</h3>
-
-    <!-- Kategori Sekmeleri (4 Mod) -->
     <div class="leaderboard-tabs">
-      <button class="lb-tab active" data-category="SOLO_WORDS">📝 Kelime</button>
-      <button class="lb-tab" data-category="SOLO_TEXT">📖 Metin</button>
-      <button class="lb-tab" data-category="SOLO_CODE">💻 Kod</button>
-      <button class="lb-tab" data-category="MULTIPLAYER_VS">🏁 Arena</button>
+      <button class="lb-tab active" data-category="SOLO_WORDS" type="button">Kelime</button>
+      <button class="lb-tab" data-category="SOLO_TEXT" type="button">Metin</button>
+      <button class="lb-tab" data-category="SOLO_CODE" type="button">Kod</button>
+      <button class="lb-tab" data-category="MULTIPLAYER_VS" type="button">Arena</button>
     </div>
 
     <table id="leaderboard-table">
       <thead>
         <tr>
           <th>#</th>
-          <th>Rumuz</th>
+          <th>İsim</th>
           <th>WPM</th>
-          <th>Doğruluk</th>
+          <th>Doğr.</th>
         </tr>
       </thead>
-      <tbody id="leaderboard-body">
-        <!-- Socket.io ile dinamik doldurulacak -->
-      </tbody>
+      <tbody id="leaderboard-body"></tbody>
     </table>
     <p id="leaderboard-empty" class="leaderboard-empty">Henüz skor yok.</p>
   </aside>
 
-  <!-- Bağımlılıklar -->
   <script src="/socket.io/socket.io.js"></script>
   <script src="sound.js"></script>
   <script src="app.js"></script>

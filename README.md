@@ -23,25 +23,34 @@
 
 ---
 
-## 💻 Kurulum ve Çalıştırma
+## 💻 Kolay Kurulum ve Çalıştırma
 
-Projeyi çalıştırmak için bilgisayarınızda **Node.js** yüklü olmalıdır.
+> ⚠️ **Önemli:** Bu proje gerçek zamanlı WebSocket (Socket.io) ve Node.js sunucusu kullandığı için **VS Code Live Server ile ÇALIŞMAZ**. Aşağıdaki 3 basit adımla kendi bilgisayarınızda başlatabilirsiniz:
+
+### 1. Hazırlık
+Bilgisayarınızda [Node.js](https://nodejs.org/) kurulu olduğundan emin olun.
+
+### 2. Başlatma Adımları
+Proje klasöründe bir terminal açın ve şu komutları çalıştırın:
 
 ```bash
-# 1. Repoyu klonlayın
-git clone https://github.com/kullanici-adi/typing-race-prototip.git
-cd typing-race-prototip
-
-# 2. Bağımlılıkları yükleyin
+# 1. Gerekli paketleri yükleyin (yalnızca ilk seferde gerekir)
 npm install
 
-# 3. Sunucuyu başlatın
+# 2. Sunucuyu başlatın
 node server.js
 ```
 
-Sunucu başladıktan sonra:
-- **Oyuncu Ekranı:** `http://localhost:3000` *(veya yerel ağdaki IP: `http://192.168.x.x:3000`)*
-- **TV İzleyici Ekranı:** `http://localhost:3000/tv.html`
+### 3. Oyuna Giriş
+Terminalde sunucunun çalıştığı yazısını gördükten sonra tarayıcınızı açın:
+
+- **Kendi bilgisayarınızdan oynamak için:**  
+  👉 [http://localhost:3000](http://localhost:3000)
+- **Büyük ekran / TV izleyici modu için:**  
+  👉 [http://localhost:3000/tv.html](http://localhost:3000/tv.html)
+- **Aynı Wi-Fi ağındaki arkadaşlarınızın katılması için:**  
+  Kendi yerel IP adresinizi verin:  
+  👉 `http://192.168.x.x:3000` *(Örn: `http://192.168.1.35:3000`)*
 
 ---
 ---
@@ -71,22 +80,31 @@ A real-time, WebSocket-based typing competition game running on a Local Area Net
 
 ---
 
-## 💻 Installation & Setup
+## 💻 Simple Installation & Setup
 
-Make sure you have **Node.js** installed on your machine.
+> ⚠️ **Note:** This project relies on a real-time WebSocket (Socket.io) and Node.js server, so it **will NOT work with VS Code Live Server**. Follow these quick steps:
+
+### 1. Prerequisite
+Ensure [Node.js](https://nodejs.org/) is installed on your computer.
+
+### 2. Run the App
+Open a terminal in the project directory and run:
 
 ```bash
-# 1. Clone repository
-git clone https://github.com/username/typing-race-prototip.git
-cd typing-race-prototip
-
-# 2. Install dependencies
+# 1. Install dependencies (only needed the first time)
 npm install
 
-# 3. Start the server
+# 2. Start the server
 node server.js
 ```
 
-Once running:
-- **Player Interface:** `http://localhost:3000` *(or LAN IP: `http://192.168.x.x:3000`)*
-- **TV Spectator Dashboard:** `http://localhost:3000/tv.html`
+### 3. Open in Browser
+Once you see the server running message in the terminal, open your browser:
+
+- **Play on your own computer:**  
+  👉 [http://localhost:3000](http://localhost:3000)
+- **Big screen / TV spectator mode:**  
+  👉 [http://localhost:3000/tv.html](http://localhost:3000/tv.html)
+- **Invite friends on the same Wi-Fi network:**  
+  Share your local LAN IP address:  
+  👉 `http://192.168.x.x:3000` *(e.g. `http://192.168.1.35:3000`)*

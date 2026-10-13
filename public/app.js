@@ -66,8 +66,11 @@
     leaderboardBody: $("#leaderboard-body"),
     leaderboardEmpty: $("#leaderboard-empty"),
 
-    // Ses ve Anti-Cheat
+    // Ses, tema ve Anti-Cheat
     btnToggleSound: $("#btn-toggle-sound"),
+    btnToggleTheme: $("#btn-toggle-theme"),
+    typingArea: $("#typing-area"),
+    caret: $("#caret"),
     anticheatModal: $("#anticheat-modal"),
     btnAnticheatDismiss: $("#btn-anticheat-dismiss"),
 
@@ -84,10 +87,10 @@
 
   // ── Mod Etiketleri ──────────────────────────────────────────
   const MODE_LABELS = {
-    SOLO_WORDS:     { icon: "📝", name: "Kelime Akışı" },
-    SOLO_TEXT:      { icon: "📖", name: "Tam Metin" },
-    SOLO_CODE:      { icon: "💻", name: "Kod Snippet" },
-    MULTIPLAYER_VS: { icon: "🏁", name: "Multiplayer Arena (1v1v1)" },
+    SOLO_WORDS:     { icon: "", name: "Kelime akışı" },
+    SOLO_TEXT:      { icon: "", name: "Tam metin" },
+    SOLO_CODE:      { icon: "", name: "Kod snippet" },
+    MULTIPLAYER_VS: { icon: "", name: "Multiplayer arena" },
   };
 
   // ── Oyun Durumu (State) ─────────────────────────────────────
@@ -113,6 +116,11 @@
   function showScreen(name) {
     Object.values(screens).forEach((s) => s.classList.remove("active"));
     if (screens[name]) screens[name].classList.add("active");
+
+    // Odak modu yalnızca oyun ekranında geçerlidir
+    if (name !== "game") {
+      document.body.classList.remove("focus-mode");
+    }
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -128,7 +136,7 @@
       // Multiplayer seçildiğinde oda girişi alanını göster
       if (state.selectedMode === "MULTIPLAYER_VS") {
         els.arenaRoomGroup.style.display = "block";
-        els.btnStart.textContent = "🏟️ Lobiye Katıl";
+        els.btnStart.textContent = "Lobiye katıl";
       } else {
         els.arenaRoomGroup.style.display = "none";
         els.btnStart.textContent = "Oyuna Başla";
@@ -213,8 +221,8 @@
       if (p.id === socket.id) item.classList.add("is-self");
 
       item.innerHTML = `
-        <span>👤 ${escapeHtml(p.nickname)}${p.id === socket.id ? " (Sen)" : ""}</span>
-        ${p.isHost ? '<span class="host-tag">👑 HOST</span>' : ""}
+        <span>${escapeHtml(p.nickname)}${p.id === socket.id ? " (Sen)" : ""}</span>
+        ${p.isHost ? '<span class="host-tag">host</span>' : ""}
       `;
       els.lobbyPlayerList.appendChild(item);
     });
@@ -269,9 +277,9 @@
       // Animasyonu yeniden tetikle
       els.countdownNumber.style.animation = "none";
       void els.countdownNumber.offsetWidth;
-      els.countdownNumber.style.animation = "zoom-pop 0.9s cubic-bezier(0.175, 0.885, 0.32, 1.275)";
+      els.countdownNumber.style.animation = "count-pop 0.5s ease-out";
     } else if (count === 0) {
-      els.countdownNumber.textContent = "BAŞLA! 🏁";
+      els.countdownNumber.textContent = "BAŞLA";
       els.countdownNumber.classList.add("go");
     }
   });
@@ -337,7 +345,7 @@
           <div class="track-progress-fill" id="track-fill-${p.id}">
             <span class="track-car" id="track-car-${p.id}">🏎️</span>
           </div>
-          <span class="track-finish-flag">🏁</span>
+          
         </div>
       `;
       els.arenaTracks.appendChild(row);
@@ -365,12 +373,12 @@
     const rowEl = $(`#track-${playerId}`);
     const pctEl = $(`#track-pct-${playerId}`);
 
-    if (carEl) carEl.textContent = rank === 1 ? "🥇" : rank === 2 ? "🥈" : "🥉";
+    if (carEl) carEl.textContent = "";
     if (rowEl) rowEl.classList.add("finished");
     if (pctEl) pctEl.textContent = `#${rank} BİTTİ`;
 
     if (rank === 1) {
-      els.arenaLiveLeader.textContent = `👑 Lider: ${escapeHtml(nickname)} (${Math.round(wpm)} WPM)`;
+      els.arenaLiveLeader.textContent = `Lider: ${escapeHtml(nickname)} (${Math.round(wpm)} WPM)`;
     }
   });
 
@@ -378,21 +386,76 @@
   //  5. YAZMA MOTORU & ANLIK VERİ AKIŞI
   // ══════════════════════════════════════════════════════════════
 
+  /**
+   * Metni kelime > harf hiyerarşisiyle çizer.
+   * state.charElements, metindeki karakter indeksiyle birebir eşleşir
+   * (boşluklar da ayrı bir .char span'idir), böylece skor mantığı değişmez.
+   */
   function renderText(text) {
     els.textDisplay.innerHTML = "";
+    els.textDisplay.scrollTop = 0;
     state.charElements = [];
 
+    let wordEl = null;
+
     for (let i = 0; i < text.length; i++) {
+      const ch = text[i];
       const span = document.createElement("span");
-      span.classList.add("char");
-      span.textContent = text[i];
-      els.textDisplay.appendChild(span);
+      span.className = "char";
+      span.textContent = ch;
       state.charElements.push(span);
+
+      if (ch === " ") {
+        // Boşluk kelimeyi kapatır ve satır kırılabilecek tek yerdir
+        wordEl = null;
+        els.textDisplay.appendChild(span);
+      } else {
+        if (!wordEl) {
+          wordEl = document.createElement("span");
+          wordEl.className = "word";
+          els.textDisplay.appendChild(wordEl);
+        }
+        wordEl.appendChild(span);
+      }
     }
 
-    if (state.charElements.length > 0) {
-      state.charElements[0].classList.add("current");
-    }
+    // Yeni metinde imleç başa döner (font yüklenmesini de beklemek için bir kare ertele)
+    requestAnimationFrame(updateCaret);
+  }
+
+  /**
+   * Özel imleci aktif harfin önüne taşır. CSS transition (left 0.1s) sayesinde
+   * harf geçişlerinde pürüzsüzce kayar. Metin 3 satırdan uzunsa satırlar kayar.
+   */
+  let caretIdleTimer = null;
+
+  function updateCaret() {
+    const chars = state.charElements;
+    if (!chars.length || !els.caret) return;
+
+    const idx = Math.min(state.currentIndex, chars.length);
+    const atEnd = idx >= chars.length;
+    const target = atEnd ? chars[chars.length - 1] : chars[idx];
+
+    const display = els.textDisplay;
+    const lineHeight = parseFloat(getComputedStyle(display).lineHeight) || 38;
+    const baseTop = chars[0].offsetTop;
+
+    // Aktif satırı bul; 2. satırdan sonrasında metni yukarı kaydır
+    const lineIndex = Math.round((target.offsetTop - baseTop) / lineHeight);
+    display.scrollTop = lineIndex >= 2 ? (lineIndex - 1) * lineHeight : 0;
+
+    const caretHeight = els.caret.offsetHeight || 30;
+    const left = target.offsetLeft + (atEnd ? target.offsetWidth : 0);
+    const top = target.offsetTop - display.scrollTop + (target.offsetHeight - caretHeight) / 2;
+
+    els.caret.style.left = `${left}px`;
+    els.caret.style.top = `${top}px`;
+
+    // Yazarken imleç sabit, durunca yanıp söner
+    els.caret.classList.add("typing");
+    clearTimeout(caretIdleTimer);
+    caretIdleTimer = setTimeout(() => els.caret.classList.remove("typing"), 600);
   }
 
   function resetGameState() {
@@ -407,6 +470,9 @@
       state.timerInterval = null;
     }
 
+    // Yeni tur: arayüz normale döner
+    document.body.classList.remove("focus-mode");
+
     els.statWpm.textContent = "0";
     els.statAccuracy.textContent = "100%";
     els.statTimer.textContent = "0s";
@@ -417,6 +483,7 @@
 
     const inputVal = els.typingInput.value;
     const inputLen = inputVal.length;
+    const prevLen = state.currentIndex;
 
     // Solo modda ilk tuşta zamanlayıcıyı başlat (Arena'da senkron başlar)
     if (state.selectedMode !== "MULTIPLAYER_VS") {
@@ -426,11 +493,16 @@
       }
     }
 
+    // Odak Modu: ilk harfle birlikte yazma alanı dışındaki her şey soluklaşır
+    if (inputLen > 0) {
+      document.body.classList.add("focus-mode");
+    }
+
     let correctSoFar = 0;
 
     for (let i = 0; i < state.charElements.length; i++) {
       const charEl = state.charElements[i];
-      charEl.classList.remove("correct", "incorrect", "current");
+      charEl.classList.remove("correct", "incorrect");
 
       if (i < inputLen) {
         if (inputVal[i] === state.targetText[i]) {
@@ -439,8 +511,6 @@
         } else {
           charEl.classList.add("incorrect");
         }
-      } else if (i === inputLen) {
-        charEl.classList.add("current");
       }
     }
 
@@ -448,16 +518,18 @@
     state.correctCount = correctSoFar;
     state.totalKeystrokes = inputLen;
 
-    // SFX: Son yazılan tuş vuruşu için ses çal
+    // SFX + titreme: yalnızca yeni eklenen karakter için
     const lastCharIdx = inputLen - 1;
-    if (lastCharIdx >= 0 && lastCharIdx < state.targetText.length) {
+    if (inputLen > prevLen && lastCharIdx >= 0 && lastCharIdx < state.targetText.length) {
       if (inputVal[lastCharIdx] === state.targetText[lastCharIdx]) {
         SoundFX.playKeySuccess();
       } else {
         SoundFX.playKeyError();
+        shakeTextLine();
       }
     }
 
+    updateCaret();
     const stats = updateStats();
 
     // ── Multiplayer Arena: Canlı İlerleme Yayını ───────────────
@@ -477,6 +549,37 @@
       finishGame();
     }
   });
+
+  /** Hatalı tuşta tüm yazma satırını 0.2sn titret */
+  function shakeTextLine() {
+    els.textDisplay.classList.remove("shake");
+    void els.textDisplay.offsetWidth; // animasyonu yeniden tetikle
+    els.textDisplay.classList.add("shake");
+  }
+
+  els.textDisplay.addEventListener("animationend", () => {
+    els.textDisplay.classList.remove("shake");
+  });
+
+  // Yazma alanına tıklanınca görünmez input'a odaklan
+  els.typingArea.addEventListener("click", () => {
+    if (!els.typingInput.disabled) els.typingInput.focus();
+  });
+
+  // Oyun ekranındayken herhangi bir tuş input'a yönlendirilir
+  window.addEventListener("keydown", (e) => {
+    if (!screens.game.classList.contains("active")) return;
+    if (els.typingInput.disabled || state.isFinished) return;
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (document.activeElement === els.typingInput) return;
+
+    const tag = document.activeElement && document.activeElement.tagName;
+    if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+
+    els.typingInput.focus();
+  });
+
+  window.addEventListener("resize", updateCaret);
 
   // ── Anti-Cheat: Kopyala-Yapıştır ve Sürükle-Bırak Engeli ─────
   ["paste", "copy", "cut", "drop", "dragstart"].forEach((evtName) => {
@@ -545,11 +648,11 @@
 
     if (state.selectedMode === "MULTIPLAYER_VS") {
       // Arena bitişi
-      els.resultTitle.textContent = "🏁 Yarışı Tamamladın!";
+      els.resultTitle.textContent = "Yarışı tamamladın";
       els.btnReturnLobby.style.display = "block";
       els.arenaPodiumContainer.style.display = "block";
       els.arenaRankBadge.style.display = "block";
-      els.arenaRankBadge.textContent = "⏳ Sıralama Hesaplanıyor…";
+      els.arenaRankBadge.textContent = "Sıralama hesaplanıyor…";
 
       socket.emit("room:finish", {
         wpm: finalWpm,
@@ -559,7 +662,7 @@
       switchLeaderboardTab("MULTIPLAYER_VS");
     } else {
       // Solo bitişi
-      els.resultTitle.textContent = "🏁 Oyun Bitti!";
+      els.resultTitle.textContent = "Oyun bitti";
       els.btnReturnLobby.style.display = "none";
       els.arenaPodiumContainer.style.display = "none";
       els.arenaRankBadge.style.display = "none";
@@ -582,7 +685,7 @@
     els.arenaPodiumList.innerHTML = "";
     podium.forEach((p, idx) => {
       const rank = p.rank || idx + 1;
-      const medals = ["🥇", "🥈", "🥉"];
+      const medals = ["1.", "2.", "3."];
       const medal = rank <= 3 ? medals[rank - 1] : `#${rank}`;
 
       const item = document.createElement("div");
@@ -595,7 +698,7 @@
 
       if (p.id === socket.id) {
         if (rank === 1) {
-          els.arenaRankBadge.textContent = "👑 ŞAMPİYON! 1. Oldun!";
+          els.arenaRankBadge.textContent = "Şampiyon, 1. oldun";
           els.arenaRankBadge.style.color = "#ffd700";
         } else {
           els.arenaRankBadge.textContent = `${medal} Yarışı #${rank}. Sırada Bitirdin`;
@@ -655,7 +758,7 @@
 
     scores.forEach((entry, index) => {
       const tr = document.createElement("tr");
-      const medals = ["🥇", "🥈", "🥉"];
+      const medals = ["1.", "2.", "3."];
       const rank = index < 3 ? medals[index] : index + 1;
 
       tr.innerHTML = `
@@ -671,7 +774,7 @@
 
   function renderModeBadge(containerEl, mode) {
     const label = MODE_LABELS[mode] || MODE_LABELS.SOLO_TEXT;
-    containerEl.textContent = `${label.icon} ${label.name}`;
+    containerEl.textContent = `${label.name}`;
   }
 
   function escapeHtml(text) {
@@ -746,8 +849,7 @@
   // ── Ses Aç/Kapat Butonu Arayüzü ──────────────────────────────
   function updateSoundButtonUI() {
     if (els.btnToggleSound) {
-      els.btnToggleSound.textContent = SoundFX.isMuted ? "🔇" : "🔊";
-      els.btnToggleSound.classList.toggle("muted", SoundFX.isMuted);
+      els.btnToggleSound.textContent = SoundFX.isMuted ? "Ses: kapalı" : "Ses: açık";
     }
   }
   updateSoundButtonUI();
@@ -756,6 +858,26 @@
     els.btnToggleSound.addEventListener("click", () => {
       SoundFX.toggleMute();
       updateSoundButtonUI();
+    });
+  }
+
+  // ── Tema Geçişi (Light / Dark) ───────────────────────────────
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("typing_race_theme", theme);
+    if (els.btnToggleTheme) {
+      // Buton, geçilecek temayı gösterir
+      els.btnToggleTheme.textContent = theme === "dark" ? "Açık tema" : "Koyu tema";
+    }
+  }
+
+  applyTheme(document.documentElement.getAttribute("data-theme") || "dark");
+
+  if (els.btnToggleTheme) {
+    els.btnToggleTheme.addEventListener("click", () => {
+      const current = document.documentElement.getAttribute("data-theme");
+      applyTheme(current === "dark" ? "light" : "dark");
+      // Tema değişince imleç konumu aynı kalır, yalnızca renk değişir
     });
   }
 
@@ -855,7 +977,7 @@
       row.className = "admin-room-item";
       row.innerHTML = `
         <div>
-          <strong>🏟️ ${escapeHtml(room.id)}</strong>
+          <strong>${escapeHtml(room.id)}</strong>
           <span style="color: var(--text-muted); font-size: 0.8rem;">(${room.playerCount} Oyuncu - Durum: ${room.status})</span>
         </div>
         <button class="btn-room-close" data-room="${escapeHtml(room.id)}">Masayı Kapat</button>

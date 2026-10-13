@@ -1,119 +1,97 @@
 <!DOCTYPE html>
-<html lang="tr">
+<html lang="tr" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>📺 TV İzleyici Ekranı – Typing Race Arena</title>
+  <title>typing race · canlı ekran</title>
+
+  <script>
+    (function () {
+      var saved = localStorage.getItem("typing_race_theme");
+      var theme = saved || (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+      document.documentElement.setAttribute("data-theme", theme);
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="tv.css" />
 </head>
 <body class="tv-body">
-  <!-- ══════════════════════════════════════════
-       ÜST BROADCAST HEADER
-       ══════════════════════════════════════════ -->
   <header class="tv-header">
     <div class="tv-brand">
-      <div class="tv-live-indicator">
-        <span class="live-dot"></span>
-        <span class="live-text">CANLI YAYIN</span>
-      </div>
-      <h1>⌨️ TYPING RACE <span>ARENA</span></h1>
+      <span class="tv-live"><span class="live-dot"></span>canlı</span>
+      <h1>typing<span>race</span></h1>
     </div>
 
     <div class="tv-quick-stats">
-      <div class="tv-stat-pill">
-        <span class="pill-label">Aktif Masa:</span>
-        <span id="stat-active-rooms" class="pill-value">0</span>
-      </div>
-      <div class="tv-stat-pill">
-        <span class="pill-label">Yarışçı:</span>
-        <span id="stat-active-players" class="pill-value">0</span>
-      </div>
+      <div class="tv-stat-pill"><span class="pill-label">aktif masa</span><span id="stat-active-rooms" class="pill-value">0</span></div>
+      <div class="tv-stat-pill"><span class="pill-label">yarışçı</span><span id="stat-active-players" class="pill-value">0</span></div>
     </div>
 
     <div class="tv-join-info">
-      <span class="join-prompt">Katılmak için tıkla / bağlan:</span>
-      <span id="tv-host-ip" class="join-url">LAN: 3000</span>
-      <span id="tv-clock" class="tv-clock">12:00:00</span>
+      <span class="join-prompt">katılmak için</span>
+      <span id="tv-host-ip" class="join-url">LAN:3000</span>
+      <span id="tv-clock" class="tv-clock">00:00:00</span>
+      <button id="btn-tv-theme" class="tv-theme-btn" type="button">Açık tema</button>
     </div>
   </header>
 
-  <!-- ══════════════════════════════════════════
-       ANA DAHBOARD (SOL: YARIŞLAR / SAĞ: SKOR)
-       ══════════════════════════════════════════ -->
   <main class="tv-main-grid">
-    <!-- SOL: CANLI YARIŞ PİSTLERİ & MASALAR -->
-    <section class="tv-arena-section">
+    <section class="tv-panel tv-arena-section">
       <div class="section-title-bar">
-        <h2>🏎️ CANLI MASALAR & ARENA YARIŞLARI</h2>
-        <span class="section-subtitle">Stanttaki tüm masalar gerçek zamanlı izleniyor</span>
+        <h2>Canlı masalar</h2>
+        <span class="section-subtitle">Stanttaki tüm yarışlar gerçek zamanlı</span>
       </div>
 
-      <!-- Aktif masalar konteyneri -->
-      <div id="tv-rooms-container" class="tv-rooms-container">
-        <!-- Odalar dinamik olarak doldurulur -->
-      </div>
+      <div id="tv-rooms-container" class="tv-rooms-container"></div>
 
-      <!-- Hiç oda yoksa bekleme afişi -->
       <div id="tv-empty-rooms" class="tv-empty-rooms">
         <div class="empty-banner">
-          <span class="banner-icon">🏁</span>
-          <h3>Masalar Yeni Yarışçıları Bekliyor!</h3>
-          <p>Herhangi bir cihazdan bağlanıp <strong>Multiplayer Arena</strong> seçerek anında yarışa katılın.</p>
+          <h3>Masalar yarışçı bekliyor</h3>
+          <p>Herhangi bir cihazdan bağlanıp <strong>Multiplayer arena</strong> seçerek yarışa katıl.</p>
         </div>
       </div>
     </section>
 
-    <!-- SAĞ: MERKEZİ SKORBOARD (LEADERBOARD) -->
-    <section class="tv-leaderboard-section">
+    <section class="tv-panel tv-leaderboard-section">
       <div class="section-title-bar">
-        <h2>🏆 LİDERLİK TABLOSU</h2>
-        <div class="auto-rotate-badge">
-          <span class="rotate-dot"></span>
-          <span id="category-badge-title">🏁 ARENA (VS)</span>
-        </div>
+        <h2>Liderlik tablosu</h2>
+        <span class="auto-rotate-badge"><span class="rotate-dot"></span><span id="category-badge-title">Arena</span></span>
       </div>
 
-      <!-- Kategori Seçim / Sekmeler -->
       <div class="tv-tabs-bar">
-        <button class="tv-tab active" data-cat="MULTIPLAYER_VS">🏁 Arena</button>
-        <button class="tv-tab" data-cat="SOLO_WORDS">📝 Kelime</button>
-        <button class="tv-tab" data-cat="SOLO_TEXT">📖 Metin</button>
-        <button class="tv-tab" data-cat="SOLO_CODE">💻 Kod</button>
+        <button class="tv-tab active" data-cat="MULTIPLAYER_VS" type="button">Arena</button>
+        <button class="tv-tab" data-cat="SOLO_WORDS" type="button">Kelime</button>
+        <button class="tv-tab" data-cat="SOLO_TEXT" type="button">Metin</button>
+        <button class="tv-tab" data-cat="SOLO_CODE" type="button">Kod</button>
       </div>
 
-      <!-- Skor Listesi -->
       <div class="tv-table-wrapper">
         <table class="tv-table">
           <thead>
             <tr>
               <th class="col-rank">#</th>
-              <th class="col-nick">Rumuz</th>
+              <th class="col-nick">İsim</th>
               <th class="col-wpm">WPM</th>
               <th class="col-acc">Doğruluk</th>
             </tr>
           </thead>
-          <tbody id="tv-leaderboard-body">
-            <!-- Dinamik skorlar -->
-          </tbody>
+          <tbody id="tv-leaderboard-body"></tbody>
         </table>
         <p id="tv-table-empty" class="tv-table-empty" style="display: none;">Bu kategoride henüz skor yok.</p>
       </div>
     </section>
   </main>
 
-  <!-- ══════════════════════════════════════════
-       ALT AKAN HABER BANDI (TICKER)
-       ══════════════════════════════════════════ -->
   <footer class="tv-ticker-footer">
-    <div class="ticker-title">SON ŞAMPİYONLAR & REKORLAR</div>
+    <div class="ticker-title">günün liderleri</div>
     <div class="ticker-wrap">
-      <div id="tv-ticker-content" class="ticker-move">
-        Yarışlar devam ediyor! En yüksek WPM ve doğruluk oranına sahip olan oyuncular günün şampiyonu ilan edilecektir.
-      </div>
+      <div id="tv-ticker-content" class="ticker-move">Yarışlar devam ediyor.</div>
     </div>
   </footer>
 
-  <!-- Socket.io & TV Scripti -->
   <script src="/socket.io/socket.io.js"></script>
   <script src="tv.js"></script>
 </body>

@@ -265,7 +265,7 @@ io.on("connection", (socket) => {
   // Odaya Katılma / Otomatik Boş Odaya Eşleşme
   socket.on("room:join", ({ roomId, nickname, autoMatch }) => {
     if (!nickname || nickname.trim().length === 0) {
-      return socket.emit("room:error", { message: "Lütfen bir rumuz girin." });
+      return socket.emit("room:error", { message: "Lütfen bir isim girin." });
     }
 
     const sanitizedNick = nickname.trim().substring(0, 20);
