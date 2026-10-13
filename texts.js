@@ -89,7 +89,7 @@ const SOLO_CODE = [
 ];
 
 // ── Geçerli Mod Anahtarları ─────────────────────────────────
-const VALID_MODES = ["SOLO_WORDS", "SOLO_TEXT", "SOLO_CODE"];
+const VALID_MODES = ["SOLO_WORDS", "SOLO_TEXT", "SOLO_CODE", "MULTIPLAYER_VS"];
 
 /**
  * Verilen moda göre rastgele metin döndürür.

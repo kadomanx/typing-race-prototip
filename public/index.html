@@ -12,6 +12,10 @@
        ══════════════════════════════════════════ -->
   <section id="screen-welcome" class="screen active">
     <div class="card">
+      <div class="card-top-nav">
+        <a href="/tv.html" target="_blank" class="tv-link-badge">📺 TV / İzleyici Ekranı</a>
+      </div>
+
       <h1>⌨️ Typing Race</h1>
       <p class="subtitle">Hızlı Yazma Klavye Oyunu</p>
 
@@ -45,7 +49,37 @@
             <span class="mode-title">Kod Snippet</span>
             <span class="mode-desc">Programlama sözdizimi ve semboller</span>
           </button>
+          <button class="mode-btn" data-mode="MULTIPLAYER_VS">
+            <span class="mode-icon">🏁</span>
+            <span class="mode-title">Multiplayer Arena (1v1v1)</span>
+            <span class="mode-desc">Ortak metin, canlı rakipler & yarış pisti</span>
+          </button>
         </div>
+      </div>
+
+      <!-- Multiplayer seçilirse oda eşleşme seçenekleri -->
+      <div class="form-group" id="arena-room-group" style="display: none;">
+        <label>Arena Masası</label>
+        <div class="room-choice-toggle">
+          <label class="radio-label">
+            <input type="radio" name="roomChoice" value="auto" checked id="radio-auto-room" />
+            <span>🚀 Otomatik Boş Masa (Önerilen)</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="roomChoice" value="custom" id="radio-custom-room" />
+            <span>🔢 Özel Masa Kodu Belirt</span>
+          </label>
+        </div>
+
+        <input
+          type="text"
+          id="room-input"
+          value=""
+          placeholder="Örn: MASA-1, FINAL-1"
+          maxlength="15"
+          autocomplete="off"
+          style="display: none; margin-top: 0.5rem;"
+        />
       </div>
 
       <button id="btn-start" class="btn-primary" disabled>Oyuna Başla</button>
@@ -53,11 +87,58 @@
   </section>
 
   <!-- ══════════════════════════════════════════
-       EKRAN 2: Oyun Alanı
+       EKRAN 2: Multiplayer Lobi Ekranı
+       ══════════════════════════════════════════ -->
+  <section id="screen-lobby" class="screen">
+    <div class="card lobby-card">
+      <div class="lobby-header">
+        <h2>🏟️ Arena Bekleme Lobisi</h2>
+        <span class="lobby-room-badge" id="lobby-room-name">MASA-1</span>
+      </div>
+      <p class="subtitle">Oyuncular toplanıyor, host yarışı başlatabilir!</p>
+
+      <div class="lobby-players-container">
+        <label>Masadaki Yarışçılar</label>
+        <div id="lobby-player-list" class="lobby-player-list">
+          <!-- Dinamik oyuncu kartları -->
+        </div>
+      </div>
+
+      <div class="lobby-actions">
+        <button id="btn-start-race" class="btn-primary" style="display: none;">🏁 Yarışı Başlat</button>
+        <div id="lobby-waiting-msg" class="lobby-waiting-msg">
+          ⏳ Masa kurucusunun yarışı başlatması bekleniyor…
+        </div>
+        <button id="btn-leave-lobby" class="btn-secondary">Masadan Ayrıl</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════
+       EKRAN 3: Oyun Alanı (Solo & Arena)
        ══════════════════════════════════════════ -->
   <section id="screen-game" class="screen">
+    <!-- Geri Sayım Katmanı (Countdown Overlay) -->
+    <div id="countdown-overlay" class="countdown-overlay" style="display: none;">
+      <div class="countdown-box">
+        <span class="countdown-title">YARIŞ BAŞLIYOR</span>
+        <div id="countdown-number" class="countdown-number">3</div>
+      </div>
+    </div>
+
     <!-- Aktif mod etiketi -->
     <div class="game-mode-badge" id="game-mode-badge"></div>
+
+    <!-- Canlı Yarış Pisti (Multiplayer Kulvarları) -->
+    <div id="arena-track-container" class="arena-track-container" style="display: none;">
+      <div class="arena-track-header">
+        <span>🏁 CANLI YARIŞ PİSTİ</span>
+        <span id="arena-live-leader" class="live-leader-badge">Yarış Başladı</span>
+      </div>
+      <div id="arena-tracks" class="arena-tracks">
+        <!-- Odadaki her yarışçı için canlı kulvar -->
+      </div>
+    </div>
 
     <div class="game-header">
       <div class="stat-box">
@@ -91,12 +172,16 @@
   </section>
 
   <!-- ══════════════════════════════════════════
-       EKRAN 3: Sonuç
+       EKRAN 4: Sonuç
        ══════════════════════════════════════════ -->
   <section id="screen-result" class="screen">
-    <div class="card">
-      <h2>🏁 Oyun Bitti!</h2>
+    <div class="card result-card">
+      <h2 id="result-title">🏁 Oyun Bitti!</h2>
       <div class="result-mode-badge" id="result-mode-badge"></div>
+
+      <!-- Arena Derece Rozeti -->
+      <div id="arena-rank-badge" class="arena-rank-badge" style="display: none;"></div>
+
       <div class="result-stats">
         <div class="result-item">
           <span class="result-label">WPM</span>
@@ -107,7 +192,17 @@
           <span id="result-accuracy" class="result-value">0%</span>
         </div>
       </div>
-      <button id="btn-play-again" class="btn-primary">Tekrar Oyna</button>
+
+      <!-- Arena Podyumu (Multiplayer Sonuç Tablosu) -->
+      <div id="arena-podium-container" class="arena-podium-container" style="display: none;">
+        <h4>🏆 Maç Sıralaması</h4>
+        <div id="arena-podium-list" class="arena-podium-list"></div>
+      </div>
+
+      <div class="result-actions">
+        <button id="btn-play-again" class="btn-primary">Tekrar Oyna</button>
+        <button id="btn-return-lobby" class="btn-secondary" style="display: none;">Lobiye Dön</button>
+      </div>
     </div>
   </section>
 
@@ -117,11 +212,12 @@
   <aside id="leaderboard-panel" class="leaderboard-panel">
     <h3>🏆 Liderlik Tablosu</h3>
 
-    <!-- Kategori Sekmeleri -->
+    <!-- Kategori Sekmeleri (4 Mod) -->
     <div class="leaderboard-tabs">
       <button class="lb-tab active" data-category="SOLO_WORDS">📝 Kelime</button>
       <button class="lb-tab" data-category="SOLO_TEXT">📖 Metin</button>
       <button class="lb-tab" data-category="SOLO_CODE">💻 Kod</button>
+      <button class="lb-tab" data-category="MULTIPLAYER_VS">🏁 Arena</button>
     </div>
 
     <table id="leaderboard-table">
