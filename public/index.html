@@ -23,7 +23,7 @@
 <body>
   <!-- ── Üst Bar ───────────────────────────────────────────── -->
   <header class="app-header fade-on-focus">
-    <div class="brand">typing<span>race</span></div>
+    <button id="btn-home-logo" class="brand" type="button" title="Ana sayfaya dön">typing<span>race</span></button>
     <nav class="header-actions">
       <a href="/tv.html" target="_blank" rel="noopener" class="header-btn">TV ekranı</a>
       <button id="btn-toggle-sound" class="header-btn" type="button" title="Sesi aç / kapat">Ses: açık</button>
@@ -258,19 +258,53 @@
     <!-- ═══ EKRAN 4: Sonuç ═══ -->
     <section id="screen-result" class="screen">
       <div class="card result-card">
-        <h2 id="result-title">Oyun bitti</h2>
-        <div class="result-mode-badge" id="result-mode-badge"></div>
+        <div class="result-top-bar">
+          <h2 id="result-title">Oyun bitti</h2>
+          <div class="result-mode-badge" id="result-mode-badge"></div>
+        </div>
 
         <div id="arena-rank-badge" class="arena-rank-badge" style="display: none;"></div>
 
-        <div class="result-stats">
-          <div class="result-item">
-            <span class="result-label">wpm</span>
-            <span id="result-wpm" class="result-value">0</span>
+        <!-- Ana Metrikler + Grafik Düzeni (Monkeytype / 10fastfingers tarzı) -->
+        <div class="result-hero">
+          <div class="result-stats">
+            <div class="result-item">
+              <span class="result-label">net wpm</span>
+              <span id="result-wpm" class="result-value">0</span>
+            </div>
+            <div class="result-item">
+              <span class="result-label">doğruluk</span>
+              <span id="result-accuracy" class="result-value">0%</span>
+            </div>
           </div>
-          <div class="result-item">
-            <span class="result-label">doğruluk</span>
-            <span id="result-accuracy" class="result-value">0%</span>
+
+          <div class="result-chart-wrap">
+            <div class="result-chart-legend">
+              <span class="legend-item"><i class="legend-dot legend-wpm"></i>net wpm</span>
+              <span class="legend-item"><i class="legend-dot legend-raw"></i>ham wpm</span>
+              <span class="legend-item"><i class="legend-dot legend-err"></i>hatalar</span>
+            </div>
+            <svg id="result-chart-svg" class="result-chart-svg" viewBox="0 0 520 170" preserveAspectRatio="none" aria-label="WPM ve hata grafiği"></svg>
+          </div>
+        </div>
+
+        <!-- Detaylı İstatistik Kartları -->
+        <div class="result-detail-grid">
+          <div class="detail-stat-box">
+            <span class="detail-stat-label">ham wpm</span>
+            <span id="result-raw-wpm" class="detail-stat-value">0</span>
+          </div>
+          <div class="detail-stat-box">
+            <span class="detail-stat-label">kesinlik (tutarlılık)</span>
+            <span id="result-consistency" class="detail-stat-value">100%</span>
+          </div>
+          <div class="detail-stat-box">
+            <span class="detail-stat-label">karakter (doğru/hata/toplam)</span>
+            <span id="result-chars" class="detail-stat-value">0 / 0 / 0</span>
+          </div>
+          <div class="detail-stat-box">
+            <span class="detail-stat-label">test süresi</span>
+            <span id="result-duration" class="detail-stat-value">0.0s</span>
           </div>
         </div>
 

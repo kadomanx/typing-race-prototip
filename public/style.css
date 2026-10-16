@@ -145,9 +145,25 @@ select {
   font-size: 1.15rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 0.2rem;
+  background: transparent;
+  border: none;
+  padding: 0.25rem 0.4rem;
+  margin-left: -0.4rem;
+  border-radius: var(--radius);
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+}
+
+.brand:hover {
+  opacity: 0.85;
+}
+
+.brand:active {
+  transform: scale(0.98);
 }
 
 .brand span {
@@ -909,21 +925,45 @@ body.focus-mode .fade-on-focus {
   display: none;
 }
 
-/* ── Sonuç ───────────────────────────────────────────────────── */
+/* ── Sonuç (Monkeytype / 10fastfingers Detaylı Analiz & Grafik) ── */
 .result-card {
-  max-width: 480px;
-  text-align: center;
+  max-width: 760px;
+  text-align: left;
 }
 
-.result-card h2 {
-  margin-bottom: 0.75rem;
+.result-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.result-top-bar h2 {
+  margin-bottom: 0;
+}
+
+.result-top-bar .result-mode-badge {
+  margin-bottom: 0;
+}
+
+.result-hero {
+  display: grid;
+  grid-template-columns: 155px 1fr;
+  gap: 1.5rem;
+  align-items: stretch;
+  margin: 0.75rem 0 1.25rem;
 }
 
 .result-stats {
   display: flex;
+  flex-direction: column;
   justify-content: center;
-  gap: 3rem;
-  margin: 1rem 0 1.5rem;
+  gap: 1.1rem;
+  padding: 1rem 1.15rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
 .result-item {
@@ -932,7 +972,7 @@ body.focus-mode .fade-on-focus {
 }
 
 .result-label {
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
   text-transform: lowercase;
   letter-spacing: 0.05em;
@@ -940,10 +980,107 @@ body.focus-mode .fade-on-focus {
 
 .result-value {
   font-family: var(--font-mono);
-  font-size: 2.5rem;
-  font-weight: 500;
+  font-size: 2.35rem;
+  font-weight: 700;
   color: var(--accent);
-  line-height: 1.2;
+  line-height: 1.1;
+}
+
+.result-chart-wrap {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 0.85rem 1rem 0.65rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-height: 195px;
+}
+
+.result-chart-legend {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 0.35rem;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.legend-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legend-wpm {
+  background: var(--accent);
+  box-shadow: var(--glow);
+}
+
+.legend-raw {
+  background: var(--text-muted);
+}
+
+.legend-err {
+  background: var(--error);
+}
+
+.result-chart-svg {
+  width: 100%;
+  height: 155px;
+  display: block;
+  overflow: visible;
+}
+
+.result-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.detail-stat-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.detail-stat-label {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  text-transform: lowercase;
+  letter-spacing: 0.04em;
+}
+
+.detail-stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+@media (max-width: 720px) {
+  .result-hero {
+    grid-template-columns: 1fr;
+  }
+  .result-stats {
+    flex-direction: row;
+    justify-content: space-around;
+  }
+  .result-detail-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 
 .arena-rank-badge {
@@ -998,8 +1135,7 @@ body.focus-mode .fade-on-focus {
 
 .result-actions {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.65rem;
 }
 
 /* ── Liderlik Tablosu ────────────────────────────────────────── */

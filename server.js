@@ -140,9 +140,12 @@ function findOrCreateRoomId(customRoomId) {
     return customRoomId.trim().toUpperCase().substring(0, 15);
   }
 
-  // 1. Bekleyen ve yer olan oda var mı?
+  // 1. Bekleyen (veya tamamlanmış) ve yer olan oda var mı?
   for (const [roomId, room] of rooms.entries()) {
-    if (room.status === "waiting" && Object.keys(room.players).length < MAX_PLAYERS_PER_ROOM) {
+    if (
+      (room.status === "waiting" || room.status === "finished") &&
+      Object.keys(room.players).length < MAX_PLAYERS_PER_ROOM
+    ) {
       return roomId;
     }
   }
@@ -177,6 +180,18 @@ function handlePlayerLeave(socket) {
       room.hostId = remainingPlayerIds[0];
       console.log(`👑  Yeni oda hostu: ${room.players[room.hostId].nickname} (${roomId})`);
     }
+
+    // Yarış sırasında ayrılan olduysa ve kalan herkes bitirdiyse maçı sonlandır
+    if (room.status === "racing") {
+      const remainingPlayers = Object.values(room.players);
+      if (remainingPlayers.length > 0 && remainingPlayers.every((p) => p.isFinished)) {
+        room.status = "waiting";
+        const podium = remainingPlayers.slice().sort((a, b) => (a.rank || 999) - (b.rank || 999));
+        io.to(roomId).emit("room:match-ended", { podium });
+        io.emit("tv:match-ended", { roomId, podium });
+      }
+    }
+
     io.to(roomId).emit("room:state", serializeRoomState(room));
   }
 
@@ -210,15 +225,18 @@ io.on("connection", (socket) => {
 
   // ── Solo Mod Skor Bildirimi (Anti-Cheat Korumalı) ────────────
   socket.on("game:submit-score", (data) => {
-    const { nickname, wpm, accuracy, mode } = data;
+    const { nickname, wpm, accuracy, mode } = data || {};
 
     if (!nickname || typeof wpm !== "number" || typeof accuracy !== "number") {
       return socket.emit("game:error", { message: "Geçersiz skor verisi." });
     }
 
-    // 1. Mantıksal Sınır Kontrolü (Sanity Check)
-    if (wpm > MAX_HUMAN_WPM || wpm < MIN_HUMAN_WPM || accuracy < MIN_ACCURACY || accuracy > MAX_ACCURACY) {
-      console.warn(`🚨 [Hile Engellendi] Aşırı WPM / Geçersiz Değer: ${nickname} (WPM: ${wpm}, Acc: ${accuracy}%)`);
+    const safeWpm = Math.max(0, Math.round(wpm * 100) / 100);
+    const safeAcc = Math.max(0, Math.min(100, Math.round(accuracy * 100) / 100));
+
+    // 1. Mantıksal Sınır Kontrolü (Sadece insan üstü hızları engelle; düşük WPM/doğruluk geçerlidir)
+    if (safeWpm > MAX_HUMAN_WPM) {
+      console.warn(`🚨 [Hile Engellendi] Aşırı WPM: ${nickname} (WPM: ${safeWpm}, Acc: ${safeAcc}%)`);
       return socket.emit("game:error", {
         message: "Hile Koruması: Skor insan anatomisi sınırlarına aykırı bulundu! (Maks 210 WPM)",
       });
@@ -228,7 +246,7 @@ io.on("connection", (socket) => {
     if (socket.data.soloGame && socket.data.soloGame.startTime) {
       const elapsedSec = (Date.now() - socket.data.soloGame.startTime) / 1000;
       const minRequiredSec = socket.data.soloGame.textLength / 22; // Saniyede maks 22 karakter
-      if (elapsedSec < minRequiredSec) {
+      if (elapsedSec < minRequiredSec && safeWpm > 130) {
         console.warn(`🚨 [Hile Engellendi] İmkansız yazma süresi! ${nickname} (${elapsedSec.toFixed(2)}s)`);
         return socket.emit("game:error", {
           message: "Hile Koruması: İmkansız yazma süresi tespit edildi!",
@@ -240,8 +258,8 @@ io.on("connection", (socket) => {
 
     const entry = {
       nickname: nickname.trim().substring(0, 20),
-      wpm: Math.round(wpm * 100) / 100,
-      accuracy: Math.round(accuracy * 100) / 100,
+      wpm: safeWpm,
+      accuracy: safeAcc,
       mode: category,
       timestamp: new Date().toISOString(),
     };
@@ -270,13 +288,13 @@ io.on("connection", (socket) => {
 
     const sanitizedNick = nickname.trim().substring(0, 20);
 
+    // Önceden başka odadaysa ayrıl
+    handlePlayerLeave(socket);
+
     // Otomatik eşleşme bayrağı varsa veya oda belirtilmemişse boş oda bul / oluştur
     const targetRoomId = (autoMatch || !roomId || roomId.trim().length === 0)
       ? findOrCreateRoomId(null)
       : findOrCreateRoomId(roomId);
-
-    // Önceden başka odadaysa ayrıl
-    handlePlayerLeave(socket);
 
     let room = rooms.get(targetRoomId);
     if (!room) {
@@ -285,18 +303,21 @@ io.on("connection", (socket) => {
         hostId: socket.id,
         status: "waiting",
         text: "",
+        startTime: null,
         finishCount: 0,
         countdownTimer: null,
         players: {},
       };
       rooms.set(targetRoomId, room);
       console.log(`🏠  Yeni arena masası kuruldu: ${targetRoomId} (Host: ${sanitizedNick})`);
-    } else if (room.status === "racing") {
-      // Yarış başlamışsa odaya izleyici olarak girebilir veya yeni odaya yönlendir
+    } else if (room.status === "racing" || room.status === "countdown") {
+      // Yarış başlamışsa başka bir masaya yönlendir
       const altRoomId = findOrCreateRoomId(null);
       return socket.emit("room:error", {
         message: `${targetRoomId} şu anda yarışta! Başka bir masaya bağlanın: ${altRoomId}`,
       });
+    } else if (room.status === "finished") {
+      room.status = "waiting";
     }
 
     room.players[socket.id] = {
@@ -331,10 +352,12 @@ io.on("connection", (socket) => {
     if (room.hostId !== socket.id) {
       return socket.emit("room:error", { message: "Sadece masa kurucusu yarışı başlatabilir." });
     }
+    if (room.status === "countdown" || room.status === "racing") return;
 
     // Ortak yarış metni belirle (Shared Seed)
     room.text = getRandomText("SOLO_TEXT");
     room.status = "countdown";
+    room.startTime = null;
     room.finishCount = 0;
 
     // Tüm oyuncu istatistiklerini sıfırla
@@ -368,8 +391,9 @@ io.on("connection", (socket) => {
         clearInterval(room.countdownTimer);
         room.countdownTimer = null;
         room.status = "racing";
+        room.startTime = Date.now();
         io.to(roomId).emit("room:race-start", {
-          startTime: Date.now(),
+          startTime: room.startTime,
           text: room.text,
           state: serializeRoomState(room),
         });
@@ -389,9 +413,9 @@ io.on("connection", (socket) => {
     const player = room.players[socket.id];
     if (!player || player.isFinished) return;
 
-    player.progress = Math.min(100, Math.max(0, Math.round(progress)));
-    player.wpm = Math.round(wpm);
-    player.accuracy = Math.round(accuracy);
+    player.progress = Math.min(100, Math.max(0, Math.round(Number(progress) || 0)));
+    player.wpm = Math.max(0, Math.round(Number(wpm) || 0));
+    player.accuracy = Math.max(0, Math.min(100, Math.round(Number(accuracy) || 100)));
 
     const updatePayload = {
       roomId,
@@ -419,9 +443,12 @@ io.on("connection", (socket) => {
     const player = room.players[socket.id];
     if (!player || player.isFinished) return;
 
-    // Anti-Cheat & Sanity Check (Arena Modu)
-    if (wpm > MAX_HUMAN_WPM || wpm < MIN_HUMAN_WPM || accuracy < MIN_ACCURACY || accuracy > MAX_ACCURACY) {
-      console.warn(`🚨 [Hile Engellendi - Arena] Aşırı WPM / Değer: ${player.nickname} (${wpm} WPM, %${accuracy})`);
+    const safeWpm = Math.max(0, Math.round((Number(wpm) || 0) * 100) / 100);
+    const safeAcc = Math.max(0, Math.min(100, Math.round((Number(accuracy) || 0) * 100) / 100));
+
+    // Anti-Cheat & Sanity Check (Arena Modu: sadece insan üstü hızları engelle)
+    if (safeWpm > MAX_HUMAN_WPM) {
+      console.warn(`🚨 [Hile Engellendi - Arena] Aşırı WPM: ${player.nickname} (${safeWpm} WPM, %${safeAcc})`);
       return socket.emit("room:error", {
         message: "Hile Koruması: Skor insan anatomisi sınırlarına aykırı bulundu! (Maks 210 WPM)",
       });
@@ -430,7 +457,7 @@ io.on("connection", (socket) => {
     if (room.startTime) {
       const elapsedSec = (Date.now() - room.startTime) / 1000;
       const minRequiredSec = room.text.length / 22; // Saniyede maks 22 karakter
-      if (elapsedSec < minRequiredSec) {
+      if (elapsedSec < minRequiredSec && safeWpm > 130) {
         console.warn(`🚨 [Hile Engellendi - Arena] İmkansız yarış süresi: ${player.nickname} (${elapsedSec.toFixed(2)}s)`);
         return socket.emit("room:error", {
           message: "Hile Koruması: İmkansız yazma süresi tespit edildi!",
@@ -442,8 +469,8 @@ io.on("connection", (socket) => {
     player.isFinished = true;
     player.progress = 100;
     player.rank = room.finishCount;
-    player.wpm = Math.round(wpm * 100) / 100;
-    player.accuracy = Math.round(accuracy * 100) / 100;
+    player.wpm = safeWpm;
+    player.accuracy = safeAcc;
 
     const finishPayload = {
       roomId,
@@ -482,12 +509,13 @@ io.on("connection", (socket) => {
     // Odadaki herkes bitirdi mi kontrolü
     const totalPlayers = Object.keys(room.players).length;
     if (room.finishCount >= totalPlayers) {
-      room.status = "finished";
+      room.status = "waiting";
       const podium = Object.values(room.players)
         .slice()
         .sort((a, b) => (a.rank || 999) - (b.rank || 999));
 
       io.to(roomId).emit("room:match-ended", { podium });
+      io.to(roomId).emit("room:state", serializeRoomState(room));
       io.emit("tv:match-ended", { roomId, podium });
     }
 

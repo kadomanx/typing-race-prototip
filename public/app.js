@@ -21,6 +21,9 @@
   };
 
   const els = {
+    // Üst Bar
+    btnHomeLogo: $("#btn-home-logo"),
+
     // Hoşgeldin Ekranı
     nicknameInput: $("#nickname-input"),
     btnStart: $("#btn-start"),
@@ -56,6 +59,11 @@
     arenaRankBadge: $("#arena-rank-badge"),
     resultWpm: $("#result-wpm"),
     resultAccuracy: $("#result-accuracy"),
+    resultRawWpm: $("#result-raw-wpm"),
+    resultConsistency: $("#result-consistency"),
+    resultChars: $("#result-chars"),
+    resultDuration: $("#result-duration"),
+    resultChartSvg: $("#result-chart-svg"),
     arenaPodiumContainer: $("#arena-podium-container"),
     arenaPodiumList: $("#arena-podium-list"),
     btnPlayAgain: $("#btn-play-again"),
@@ -98,14 +106,22 @@
     nickname: "",
     selectedMode: "SOLO_WORDS",     // "SOLO_WORDS" | "SOLO_TEXT" | "SOLO_CODE" | "MULTIPLAYER_VS"
     activeCategory: "SOLO_WORDS",   // Leaderboard aktif sekmesi
-    currentRoomId: "ARENA-1",
+    currentRoomId: null,
     isHost: false,
     roomPlayers: {},                // socketId => playerData
     targetText: "",                 // Yazılacak hedef metin
     charElements: [],               // Metin karakter span referansları
+    wordRanges: [],                 // [{ start, end, spaceIdx }] kelime sınırları
+    currentWordIdx: 0,              // Aktif kelime indeksi
+    currentTypedWord: "",           // Sadece aktif kelimede yazılan metin
+    lockedCorrectChars: 0,          // Kilitlenmiş hatasız kelimelerin karakter + boşluk sayısı
     currentIndex: 0,
-    correctCount: 0,
-    totalKeystrokes: 0,
+    correctCount: 0,                // Net WPM için geçerli doğru karakter sayısı
+    correctKeystrokes: 0,           // Anlık doğru tuş vuruşu (Backspace ile silinse de düşmez)
+    totalKeystrokes: 0,             // Toplam karakter/boşluk tuş vuruşu (Backspace hariç)
+    errorCount: 0,
+    wpmHistory: [],                 // Saniye bazlı { sec, wpm, rawWpm, errors } kayıtları
+    lastSnapshotErrors: 0,
     startTime: null,
     timerInterval: null,
     isFinished: false,
@@ -121,6 +137,27 @@
     if (name !== "game") {
       document.body.classList.remove("focus-mode");
     }
+  }
+
+  /** Ana sayfaya (Giriş ekranına) güvenli dönüş – zamanlayıcıları ve odayı temizler */
+  function navigateToHome() {
+    if (state.timerInterval) {
+      clearInterval(state.timerInterval);
+      state.timerInterval = null;
+    }
+    if (state.currentRoomId) {
+      socket.emit("room:leave");
+      state.currentRoomId = null;
+      state.isHost = false;
+    }
+    if (els.countdownOverlay) els.countdownOverlay.style.display = "none";
+    if (els.anticheatModal) els.anticheatModal.style.display = "none";
+    resetGameState();
+    showScreen("welcome");
+  }
+
+  if (els.btnHomeLogo) {
+    els.btnHomeLogo.addEventListener("click", navigateToHome);
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -139,7 +176,7 @@
         els.btnStart.textContent = "Lobiye katıl";
       } else {
         els.arenaRoomGroup.style.display = "none";
-        els.btnStart.textContent = "Oyuna Başla";
+        els.btnStart.textContent = "Başla";
       }
     });
   });
@@ -179,7 +216,6 @@
         nickname: state.nickname,
         autoMatch: isAuto,
       });
-      showScreen("lobby");
     } else {
       // Solo Mod
       socket.emit("game:request-text", { mode: state.selectedMode });
@@ -211,6 +247,11 @@
       els.btnStartRace.style.display = "none";
       els.lobbyWaitingMsg.style.display = "block";
     }
+
+    // Giriş ekranından odaya yeni katıldıysa lobi ekranına geçir
+    if (screens.welcome.classList.contains("active")) {
+      showScreen("lobby");
+    }
   });
 
   function renderLobbyPlayers(players) {
@@ -234,6 +275,9 @@
 
   els.btnLeaveLobby.addEventListener("click", () => {
     socket.emit("room:leave");
+    state.currentRoomId = null;
+    state.isHost = false;
+    resetGameState();
     showScreen("welcome");
   });
 
@@ -247,7 +291,6 @@
       state.targetText = text;
       state.selectedMode = "MULTIPLAYER_VS";
       resetGameState();
-      renderText(text);
 
       // UI ayarları
       renderModeBadge(els.gameModeBadge, "MULTIPLAYER_VS");
@@ -260,7 +303,9 @@
         initArenaTracks(roomState.players);
       }
 
+      // Önce ekranı görünür yap, sonra metni ve imleci hesapla
       showScreen("game");
+      renderText(text);
       els.typingInput.value = "";
       els.typingInput.disabled = true; // Geri sayım bitene kadar kilitli
     }
@@ -284,14 +329,16 @@
     }
   });
 
-  socket.on("room:race-start", ({ startTime, text }) => {
+  socket.on("room:race-start", () => {
     els.countdownOverlay.style.display = "none";
     els.typingInput.disabled = false;
     els.typingInput.value = "";
     els.typingInput.focus();
 
-    state.startTime = startTime || Date.now();
+    // Cihazlar arası saat farkı (clock skew) sorununu önlemek için yerel zamanı kullan
+    state.startTime = Date.now();
     startTimer();
+    requestAnimationFrame(updateCaret);
   });
 
   // ── Solo Metin Geldiğinde ───────────────────────────────────
@@ -312,8 +359,9 @@
       els.typingInput.classList.remove("code-mode");
     }
 
-    renderText(text);
+    // Önce ekranı görünür yap, sonra metni ve imleci render et
     showScreen("game");
+    renderText(text);
     els.typingInput.disabled = false;
     els.typingInput.value = "";
     els.typingInput.focus();
@@ -368,17 +416,44 @@
     updateTrackProgress(playerId, progress, wpm);
   });
 
-  socket.on("room:player-finished", ({ playerId, nickname, rank, wpm }) => {
+  socket.on("room:player-finished", ({ playerId, nickname, rank, wpm, accuracy }) => {
+    const fillEl = $(`#track-fill-${playerId}`);
     const carEl = $(`#track-car-${playerId}`);
     const rowEl = $(`#track-${playerId}`);
     const pctEl = $(`#track-pct-${playerId}`);
+    const wpmEl = $(`#track-wpm-${playerId}`);
 
+    if (fillEl) fillEl.style.width = "100%";
     if (carEl) carEl.textContent = "";
     if (rowEl) rowEl.classList.add("finished");
+    if (wpmEl) wpmEl.textContent = `${Math.round(wpm)} WPM`;
     if (pctEl) pctEl.textContent = `#${rank} BİTTİ`;
 
     if (rank === 1) {
       els.arenaLiveLeader.textContent = `Lider: ${escapeHtml(nickname)} (${Math.round(wpm)} WPM)`;
+    }
+
+    // Kendi bitiş derecemizi anında göster (diğer oyuncuları beklemeden)
+    if (playerId === socket.id && els.arenaRankBadge) {
+      if (rank === 1) {
+        els.arenaRankBadge.textContent = "Şampiyon, 1. oldun!";
+        els.arenaRankBadge.style.color = "var(--accent)";
+      } else {
+        els.arenaRankBadge.textContent = `Yarışı #${rank}. sırada bitirdin`;
+        els.arenaRankBadge.style.color = "";
+      }
+    }
+
+    // Podyum listesine anlık ekle (room:match-ended geldiğinde tam liste yenilenir)
+    if (els.arenaPodiumList && !$(`#podium-row-${playerId}`)) {
+      const item = document.createElement("div");
+      item.id = `podium-row-${playerId}`;
+      item.className = `podium-item rank-${rank}`;
+      item.innerHTML = `
+        <span>${rank}. ${escapeHtml(nickname)}${playerId === socket.id ? " (Sen)" : ""}</span>
+        <span><strong>${Math.round(wpm || 0)} WPM</strong> (%${Math.round(accuracy ?? 100)})</span>
+      `;
+      els.arenaPodiumList.appendChild(item);
     }
   });
 
@@ -394,6 +469,7 @@
   function renderText(text) {
     els.textDisplay.innerHTML = "";
     state.charElements = [];
+    state.wordRanges = [];
 
     // İmleç elementi #text-display içinde yer alır
     const caretEl = document.createElement("div");
@@ -403,6 +479,7 @@
     els.caret = caretEl;
 
     let currentWord = null;
+    let wordStart = 0;
 
     for (let i = 0; i < text.length; i++) {
       const ch = text[i];
@@ -412,24 +489,29 @@
       state.charElements.push(span);
 
       if (ch === " ") {
-        // Boşluk karakteri: .word dışına değil, kelime ayırıcı olarak render edilir
         span.classList.add("char-space");
-        // Boşluğun genişliğini açıkça belirt
         span.innerHTML = "&nbsp;";
         if (currentWord) {
           currentWord.appendChild(span);
+          state.wordRanges.push({ start: wordStart, end: i, spaceIdx: i });
           currentWord = null;
         } else {
           els.textDisplay.appendChild(span);
         }
+        wordStart = i + 1;
       } else {
         if (!currentWord) {
           currentWord = document.createElement("span");
           currentWord.className = "word";
           els.textDisplay.appendChild(currentWord);
+          wordStart = i;
         }
         currentWord.appendChild(span);
       }
+    }
+
+    if (currentWord) {
+      state.wordRanges.push({ start: wordStart, end: text.length, spaceIdx: -1 });
     }
 
     els.textDisplay.scrollTop = 0;
@@ -497,10 +579,16 @@
   }
 
   function resetGameState() {
+    state.currentWordIdx = 0;
+    state.currentTypedWord = "";
+    state.lockedCorrectChars = 0;
     state.currentIndex = 0;
     state.correctCount = 0;
+    state.correctKeystrokes = 0;
     state.totalKeystrokes = 0;
     state.errorCount = 0;
+    state.wpmHistory = [];
+    state.lastSnapshotErrors = 0;
     state.startTime = null;
     state.isFinished = false;
     if (typeof resetChick === "function") resetChick();
@@ -510,85 +598,199 @@
       state.timerInterval = null;
     }
 
-    // Yeni tur: arayüz normale döner
     document.body.classList.remove("focus-mode");
 
     els.statWpm.textContent = "0";
     els.statAccuracy.textContent = "100%";
     els.statTimer.textContent = "0s";
+    if (els.arenaPodiumList) els.arenaPodiumList.innerHTML = "";
+    if (els.arenaRankBadge) els.arenaRankBadge.textContent = "";
   }
 
-  els.typingInput.addEventListener("input", () => {
-    if (state.isFinished) return;
-
-    const inputVal = els.typingInput.value;
-    const inputLen = inputVal.length;
-    const prevLen = state.currentIndex;
-
-    // Solo modda ilk tuşta zamanlayıcıyı başlat (Arena'da senkron başlar)
-    if (state.selectedMode !== "MULTIPLAYER_VS") {
-      if (!state.startTime && inputLen > 0) {
-        state.startTime = Date.now();
-        startTimer();
-      }
+  /** Aktif ve kilitlenmiş kelimelerden geçerli doğru karakter sayısını hesaplar */
+  function computeValidCorrectChars() {
+    const range = state.wordRanges[state.currentWordIdx];
+    if (!range) return state.lockedCorrectChars;
+    const expected = state.targetText.slice(range.start, range.end);
+    const typed = state.currentTypedWord;
+    // Aktif kelimede şu ana kadar hiç hata yoksa yazılan harfleri anlık WPM'e dahil et
+    if (typed.length > 0 && expected.startsWith(typed)) {
+      return state.lockedCorrectChars + typed.length;
     }
+    return state.lockedCorrectChars;
+  }
 
-    // Odak Modu: ilk harfle birlikte yazma alanı dışındaki her şey soluklaşır
-    if (inputLen > 0) {
-      document.body.classList.add("focus-mode");
-    }
-
-    let correctSoFar = 0;
-
-    for (let i = 0; i < state.charElements.length; i++) {
-      const charEl = state.charElements[i];
-      charEl.classList.remove("correct", "incorrect");
-
-      if (i < inputLen) {
-        if (inputVal[i] === state.targetText[i]) {
-          charEl.classList.add("correct");
-          correctSoFar++;
-        } else {
-          charEl.classList.add("incorrect");
-        }
-      }
-    }
-
-    state.currentIndex = inputLen;
-    state.correctCount = correctSoFar;
-    state.totalKeystrokes = inputLen;
-
-    // SFX + titreme: yalnızca yeni eklenen karakter için
-    const lastCharIdx = inputLen - 1;
-    if (inputLen > prevLen && lastCharIdx >= 0 && lastCharIdx < state.targetText.length) {
-      if (inputVal[lastCharIdx] === state.targetText[lastCharIdx]) {
-        SoundFX.playKeySuccess();
-      } else {
-        state.errorCount = (state.errorCount || 0) + 1;
-        SoundFX.playKeyError();
-        shakeTextLine();
-        triggerChickAlert();
-      }
-    }
-
+  /** Multiplayer ilerleme yayını ve istatistik güncellemesi */
+  function syncAfterKeystroke() {
+    state.correctCount = computeValidCorrectChars();
     lastKeyTime = performance.now();
     updateCaret();
     const stats = updateStats();
 
-    // ── Multiplayer Arena: Canlı İlerleme Yayını ───────────────
     if (state.selectedMode === "MULTIPLAYER_VS" && state.targetText.length > 0) {
-      const progress = (state.correctCount / state.targetText.length) * 100;
+      const progress = Math.min(100, (state.correctCount / state.targetText.length) * 100);
       updateTrackProgress(socket.id, progress, stats.wpm);
-
       socket.emit("room:progress", {
         progress,
         wpm: stats.wpm,
         accuracy: stats.accuracy,
       });
     }
+  }
 
-    // Metin tamamlandı mı?
-    if (inputLen >= state.targetText.length) {
+  // Space ve Backspace için kelime kilitleme kontrolü
+  els.typingInput.addEventListener("keydown", (e) => {
+    if (state.isFinished) return;
+    const range = state.wordRanges[state.currentWordIdx];
+    if (!range) return;
+
+    // 1. Backspace: Sadece aktif kelimenin içindeyken silmeye izin ver, önceki kelimeye dönülmesin
+    if (e.key === "Backspace") {
+      if (state.currentTypedWord.length === 0) {
+        e.preventDefault();
+      }
+      return;
+    }
+
+    // 2. Space (Boşluk) veya son kelimede Enter: Kelimeyi kilitle ve sonraki kelimeye geç
+    if (e.key === " " || (e.key === "Enter" && state.currentWordIdx === state.wordRanges.length - 1)) {
+      e.preventDefault();
+
+      // Kelime başında art arda boşluğa basılmasını engelle
+      if (state.currentTypedWord.length === 0) return;
+
+      if (state.selectedMode !== "MULTIPLAYER_VS" && !state.startTime) {
+        state.startTime = Date.now();
+        startTimer();
+      }
+      document.body.classList.add("focus-mode");
+
+      const expectedWord = state.targetText.slice(range.start, range.end);
+      const typedLen = state.currentTypedWord.length;
+      const isWordExact = state.currentTypedWord === expectedWord;
+
+      state.totalKeystrokes++;
+
+      if (typedLen === expectedWord.length) {
+        // Boşluk doğru pozisyonda basıldı
+        state.correctKeystrokes++;
+        if (range.spaceIdx !== -1) {
+          state.charElements[range.spaceIdx].classList.add("correct");
+        }
+        SoundFX.playKeySuccess();
+      } else {
+        // Kelime eksik bırakılıp boşluğa basıldı: kalan harfleri ve boşluğu hatalı işaretle
+        for (let i = range.start + typedLen; i < range.end; i++) {
+          state.charElements[i].classList.add("incorrect");
+        }
+        if (range.spaceIdx !== -1) {
+          state.charElements[range.spaceIdx].classList.add("incorrect");
+        }
+        state.errorCount++;
+        SoundFX.playKeyError();
+        shakeTextLine();
+        triggerChickAlert();
+      }
+
+      // Sadece tamamen doğru yazılmış kelimelerin karakter + boşluk sayısı Net WPM'e eklenir
+      if (isWordExact) {
+        state.lockedCorrectChars += expectedWord.length + (range.spaceIdx !== -1 ? 1 : 0);
+      }
+
+      // Sonraki kelimeye geç
+      state.currentWordIdx++;
+      state.currentTypedWord = "";
+      els.typingInput.value = "";
+
+      if (state.currentWordIdx >= state.wordRanges.length) {
+        state.currentIndex = state.targetText.length;
+        syncAfterKeystroke();
+        finishGame();
+      } else {
+        state.currentIndex = state.wordRanges[state.currentWordIdx].start;
+        syncAfterKeystroke();
+      }
+    }
+  });
+
+  els.typingInput.addEventListener("input", () => {
+    if (state.isFinished) return;
+    const range = state.wordRanges[state.currentWordIdx];
+    if (!range) return;
+
+    const expectedWord = state.targetText.slice(range.start, range.end);
+    // Boşluk karakterleri keydown'da işlendiği için input içinden temizle
+    let rawVal = els.typingInput.value.replace(/ /g, "");
+    const prevVal = state.currentTypedWord;
+
+    // Solo modda ilk tuşta zamanlayıcıyı başlat
+    if (state.selectedMode !== "MULTIPLAYER_VS" && !state.startTime && rawVal.length > 0) {
+      state.startTime = Date.now();
+      startTimer();
+    }
+    if (rawVal.length > 0) {
+      document.body.classList.add("focus-mode");
+    }
+
+    // Kelime uzunluğunu aşan fazladan harf basıldıysa: hata say ama kelime sınırını taşırma
+    if (rawVal.length > expectedWord.length) {
+      const extraCount = rawVal.length - Math.max(prevVal.length, expectedWord.length);
+      if (extraCount > 0) {
+        state.totalKeystrokes += extraCount;
+        state.errorCount += extraCount;
+        SoundFX.playKeyError();
+        shakeTextLine();
+        triggerChickAlert();
+      }
+      rawVal = rawVal.slice(0, expectedWord.length);
+      els.typingInput.value = rawVal;
+    }
+
+    // Yeni karakter(ler) eklendiyse anlık tuş vuruşu (keystroke) kontrolü
+    if (rawVal.length > prevVal.length) {
+      for (let pos = prevVal.length; pos < rawVal.length; pos++) {
+        const ch = rawVal[pos];
+        const targetIdx = range.start + pos;
+        state.totalKeystrokes++;
+
+        if (ch === state.targetText[targetIdx]) {
+          state.correctKeystrokes++;
+          SoundFX.playKeySuccess();
+        } else {
+          state.errorCount++;
+          SoundFX.playKeyError();
+          shakeTextLine();
+          triggerChickAlert();
+        }
+      }
+    }
+
+    state.currentTypedWord = rawVal;
+
+    // Aktif kelimenin DOM span sınıflarını güncelle (kilitli önceki kelimelere dokunulmaz)
+    for (let pos = 0; pos < expectedWord.length; pos++) {
+      const charEl = state.charElements[range.start + pos];
+      charEl.classList.remove("correct", "incorrect");
+      if (pos < rawVal.length) {
+        if (rawVal[pos] === expectedWord[pos]) {
+          charEl.classList.add("correct");
+        } else {
+          charEl.classList.add("incorrect");
+        }
+      }
+    }
+
+    state.currentIndex = range.start + rawVal.length;
+    syncAfterKeystroke();
+
+    // Son kelime hatasız tamamlandıysa boşluk beklemeden bitir
+    if (
+      state.currentWordIdx === state.wordRanges.length - 1 &&
+      rawVal === expectedWord
+    ) {
+      state.lockedCorrectChars += expectedWord.length;
+      state.currentIndex = state.targetText.length;
+      syncAfterKeystroke();
       finishGame();
     }
   });
@@ -708,21 +910,25 @@
 
   function updateStats() {
     const elapsed = getElapsedMinutes();
-    const wpm = elapsed > 0 ? (state.correctCount / 5) / elapsed : 0;
+    const wpm = elapsed > 0 ? Math.round((state.correctCount / 5) / elapsed) : 0;
     const accuracy =
       state.totalKeystrokes > 0
-        ? (state.correctCount / state.totalKeystrokes) * 100
+        ? Math.round((state.correctKeystrokes / state.totalKeystrokes) * 100)
         : 100;
 
-    els.statWpm.textContent = Math.round(wpm);
-    els.statAccuracy.textContent = Math.round(accuracy) + "%";
+    els.statWpm.textContent = wpm;
+    els.statAccuracy.textContent = accuracy + "%";
 
     return { wpm, accuracy };
   }
 
-  function getElapsedMinutes() {
+  /** İlk 2 saniyedeki matematiksel WPM sıçramalarını (spike) önlemek için minimum 2sn tabanı uygular */
+  function getElapsedMinutes(isFinal = false) {
     if (!state.startTime) return 0;
-    return (Date.now() - state.startTime) / 60000;
+    const elapsedMs = Date.now() - state.startTime;
+    if (!isFinal && elapsedMs < 500) return 0;
+    const safeMs = isFinal ? Math.max(elapsedMs, 1000) : Math.max(elapsedMs, 2000);
+    return safeMs / 60000;
   }
 
   function getElapsedSeconds() {
@@ -730,11 +936,126 @@
     return Math.floor((Date.now() - state.startTime) / 1000);
   }
 
+  function recordWpmSnapshot() {
+    if (!state.startTime) return;
+    const elapsedMs = Math.max(1000, Date.now() - state.startTime);
+    const elapsedMin = elapsedMs / 60000;
+    const sec = Math.max(1, Math.round(elapsedMs / 1000));
+    state.correctCount = computeValidCorrectChars();
+
+    const netWpm = Math.round((state.correctCount / 5) / elapsedMin);
+    const rawWpm = Math.max(netWpm, Math.round((state.totalKeystrokes / 5) / elapsedMin));
+    const deltaErrors = Math.max(0, state.errorCount - state.lastSnapshotErrors);
+    state.lastSnapshotErrors = state.errorCount;
+
+    const lastEntry = state.wpmHistory[state.wpmHistory.length - 1];
+    if (lastEntry && lastEntry.sec === sec) {
+      lastEntry.wpm = netWpm;
+      lastEntry.rawWpm = rawWpm;
+      lastEntry.errors += deltaErrors;
+    } else {
+      state.wpmHistory.push({ sec, wpm: netWpm, rawWpm, errors: deltaErrors });
+    }
+  }
+
   function startTimer() {
+    if (state.timerInterval) {
+      clearInterval(state.timerInterval);
+    }
     state.timerInterval = setInterval(() => {
       els.statTimer.textContent = getElapsedSeconds() + "s";
       updateStats();
+      recordWpmSnapshot();
     }, 1000);
+  }
+
+  /** Saniye bazlı WPM örneklerinden tutarlılık (consistency %) hesaplar */
+  function computeConsistency(history, finalWpm) {
+    if (!history || history.length < 2 || finalWpm <= 0) return 100;
+    const values = history.map((h) => h.wpm);
+    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+    if (mean <= 0) return 100;
+    const variance = values.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / values.length;
+    const stdDev = Math.sqrt(variance);
+    const cv = stdDev / mean;
+    return Math.max(0, Math.min(100, Math.round((1 - cv * 0.85) * 100)));
+  }
+
+  /** Monkeytype / 10fastfingers tarzı SVG WPM & Hata Grafiği çizer */
+  function renderResultChart(history) {
+    const svg = els.resultChartSvg;
+    if (!svg) return;
+
+    const points = history && history.length > 0 ? history.slice() : [{ sec: 1, wpm: 0, rawWpm: 0, errors: 0 }];
+    if (points.length === 1) {
+      points.unshift({ sec: 0, wpm: Math.round(points[0].wpm * 0.7), rawWpm: Math.round(points[0].rawWpm * 0.7), errors: 0 });
+    }
+
+    const W = 520;
+    const H = 170;
+    const padL = 34;
+    const padR = 14;
+    const padT = 14;
+    const padB = 26;
+    const plotW = W - padL - padR;
+    const plotH = H - padT - padB;
+
+    const maxVal = Math.max(60, ...points.map((p) => Math.max(p.wpm, p.rawWpm)));
+    const yMax = Math.ceil(maxVal / 20) * 20;
+
+    const getX = (i) => padL + (points.length > 1 ? (i / (points.length - 1)) * plotW : plotW / 2);
+    const getY = (val) => padT + plotH - Math.min(1, Math.max(0, val / yMax)) * plotH;
+
+    let html = "";
+
+    // Yatay kılavuz çizgileri ve Y ekseni etiketleri (0, %50, %100)
+    const yTicks = [0, Math.round(yMax / 2), yMax];
+    yTicks.forEach((tick) => {
+      const y = getY(tick).toFixed(1);
+      html += `<line x1="${padL}" y1="${y}" x2="${W - padR}" y2="${y}" stroke="var(--border)" stroke-dasharray="3 3" stroke-width="1" />`;
+      html += `<text x="${padL - 6}" y="${Number(y) + 3.5}" text-anchor="end" fill="var(--text-muted)" font-size="10" font-family="var(--font-mono)">${tick}</text>`;
+    });
+
+    // X ekseni zaman etiketleri (en fazla 6 etiket)
+    const step = Math.max(1, Math.ceil((points.length - 1) / 5));
+    points.forEach((pt, idx) => {
+      if (idx === 0 || idx === points.length - 1 || idx % step === 0) {
+        const x = getX(idx).toFixed(1);
+        html += `<text x="${x}" y="${H - 6}" text-anchor="middle" fill="var(--text-muted)" font-size="10" font-family="var(--font-mono)">${pt.sec}s</text>`;
+      }
+    });
+
+    // Ham WPM (kesikli gri çizgi)
+    const rawCoords = points.map((pt, i) => `${getX(i).toFixed(1)},${getY(pt.rawWpm).toFixed(1)}`);
+    html += `<polyline fill="none" stroke="var(--text-muted)" stroke-width="1.6" stroke-dasharray="4 3" opacity="0.65" points="${rawCoords.join(" ")}" />`;
+
+    // Net WPM (altı hafif dolgulu ana vurgu çizgisi)
+    const wpmCoords = points.map((pt, i) => `${getX(i).toFixed(1)},${getY(pt.wpm).toFixed(1)}`);
+    const areaPoints = [
+      `${getX(0).toFixed(1)},${(padT + plotH).toFixed(1)}`,
+      ...wpmCoords,
+      `${getX(points.length - 1).toFixed(1)},${(padT + plotH).toFixed(1)}`,
+    ].join(" ");
+    html += `<polygon points="${areaPoints}" fill="var(--accent-soft)" />`;
+    html += `<polyline fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" points="${wpmCoords.join(" ")}" />`;
+
+    // Noktalar ve hata işaretleri
+    points.forEach((pt, i) => {
+      const x = getX(i).toFixed(1);
+      const y = getY(pt.wpm).toFixed(1);
+      html += `<circle cx="${x}" cy="${y}" r="3" fill="var(--accent)">
+        <title>${pt.sec}. sn: ${pt.wpm} Net WPM (Ham: ${pt.rawWpm} WPM, Hata: ${pt.errors})</title>
+      </circle>`;
+
+      if (pt.errors > 0) {
+        const errY = Math.max(padT + 6, Number(y) - 10).toFixed(1);
+        html += `<circle cx="${x}" cy="${errY}" r="4" fill="var(--error)">
+          <title>${pt.sec}. saniyede ${pt.errors} hata</title>
+        </circle>`;
+      }
+    });
+
+    svg.innerHTML = html;
   }
 
   // ══════════════════════════════════════════════════════════════
@@ -742,6 +1063,7 @@
   // ══════════════════════════════════════════════════════════════
 
   function finishGame() {
+    if (state.isFinished) return;
     state.isFinished = true;
 
     if (state.timerInterval) {
@@ -749,16 +1071,38 @@
       state.timerInterval = null;
     }
 
-    const elapsed = getElapsedMinutes();
-    const finalWpm = elapsed > 0 ? (state.correctCount / 5) / elapsed : 0;
+    if (!state.startTime) {
+      state.startTime = Date.now() - 1000;
+    }
+
+    // Son saniye verisini grafiğe kaydet
+    recordWpmSnapshot();
+
+    state.correctCount = computeValidCorrectChars();
+    const elapsed = getElapsedMinutes(true);
+    const elapsedSecExact = Math.max(0.5, (Date.now() - state.startTime) / 1000);
+    const finalWpm = elapsed > 0 ? Math.round((state.correctCount / 5) / elapsed) : 0;
+    const finalRawWpm = elapsed > 0 ? Math.max(finalWpm, Math.round((state.totalKeystrokes / 5) / elapsed)) : 0;
     const finalAccuracy =
       state.totalKeystrokes > 0
-        ? (state.correctCount / state.totalKeystrokes) * 100
+        ? Math.round((state.correctKeystrokes / state.totalKeystrokes) * 100)
         : 100;
+    const consistency = computeConsistency(state.wpmHistory, finalWpm);
 
-    els.resultWpm.textContent = Math.round(finalWpm * 100) / 100;
-    els.resultAccuracy.textContent = Math.round(finalAccuracy * 100) / 100 + "%";
+    // Ana ve detaylı istatistikleri doldur
+    els.resultWpm.textContent = finalWpm;
+    els.resultAccuracy.textContent = finalAccuracy + "%";
+    if (els.resultRawWpm) els.resultRawWpm.textContent = finalRawWpm;
+    if (els.resultConsistency) els.resultConsistency.textContent = consistency + "%";
+    if (els.resultChars) {
+      els.resultChars.textContent = `${state.correctKeystrokes} / ${state.errorCount} / ${state.totalKeystrokes}`;
+    }
+    if (els.resultDuration) {
+      els.resultDuration.textContent = `${elapsedSecExact.toFixed(1)}s`;
+    }
+
     renderModeBadge(els.resultModeBadge, state.selectedMode);
+    renderResultChart(state.wpmHistory);
 
     // SFX: Zafer / Bitiş Fanfarı
     SoundFX.playVictory();
@@ -766,10 +1110,14 @@
     if (state.selectedMode === "MULTIPLAYER_VS") {
       // Arena bitişi
       els.resultTitle.textContent = "Yarışı tamamladın";
+      els.btnPlayAgain.textContent = "Lobiye dön";
       els.btnReturnLobby.style.display = "block";
+      els.btnReturnLobby.textContent = "Ana sayfa";
       els.arenaPodiumContainer.style.display = "block";
       els.arenaRankBadge.style.display = "block";
-      els.arenaRankBadge.textContent = "Sıralama hesaplanıyor…";
+      if (!els.arenaRankBadge.textContent || els.arenaRankBadge.textContent === "Sıralama hesaplanıyor…") {
+        els.arenaRankBadge.textContent = "Sıralama hesaplanıyor…";
+      }
 
       socket.emit("room:finish", {
         wpm: finalWpm,
@@ -780,7 +1128,9 @@
     } else {
       // Solo bitişi
       els.resultTitle.textContent = "Oyun bitti";
-      els.btnReturnLobby.style.display = "none";
+      els.btnPlayAgain.textContent = "Tekrar oyna";
+      els.btnReturnLobby.style.display = "block";
+      els.btnReturnLobby.textContent = "Mod değiştir";
       els.arenaPodiumContainer.style.display = "none";
       els.arenaRankBadge.style.display = "none";
 
@@ -806,25 +1156,28 @@
       const medal = rank <= 3 ? medals[rank - 1] : `#${rank}`;
 
       const item = document.createElement("div");
+      item.id = `podium-row-${p.id}`;
       item.className = `podium-item rank-${rank}`;
       item.innerHTML = `
         <span>${medal} ${escapeHtml(p.nickname)}${p.id === socket.id ? " (Sen)" : ""}</span>
-        <span><strong>${p.wpm || 0} WPM</strong> (%${p.accuracy || 100})</span>
+        <span><strong>${p.wpm || 0} WPM</strong> (%${p.accuracy ?? 100})</span>
       `;
       els.arenaPodiumList.appendChild(item);
 
       if (p.id === socket.id) {
         if (rank === 1) {
-          els.arenaRankBadge.textContent = "Şampiyon, 1. oldun";
-          els.arenaRankBadge.style.color = "#ffd700";
+          els.arenaRankBadge.textContent = "Şampiyon, 1. oldun!";
+          els.arenaRankBadge.style.color = "var(--accent)";
         } else {
-          els.arenaRankBadge.textContent = `${medal} Yarışı #${rank}. Sırada Bitirdin`;
+          els.arenaRankBadge.textContent = `${medal} Yarışı #${rank}. sırada bitirdin`;
+          els.arenaRankBadge.style.color = "";
         }
       }
     });
   });
 
   els.btnPlayAgain.addEventListener("click", () => {
+    resetGameState();
     if (state.selectedMode === "MULTIPLAYER_VS") {
       showScreen("lobby");
     } else {
@@ -833,7 +1186,7 @@
   });
 
   els.btnReturnLobby.addEventListener("click", () => {
-    showScreen("lobby");
+    navigateToHome();
   });
 
   // ══════════════════════════════════════════════════════════════
