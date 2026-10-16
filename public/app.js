@@ -192,9 +192,53 @@
     });
   }
 
+  // ── İsim / Rumuz Küfür & XSS Filtresi ──────────────────────
+  const CLIENT_BAD_WORDS = [
+    "amk", "aq", "amq", "oç", "oc", "piç", "pic", "sik", "siktir", "sikeyim",
+    "sikerim", "sokuk", "yarrak", "yarak", "göt", "gotveren", "orospu", "oruspu",
+    "kahpe", "pezevenk", "ibne", "puşt", "pust", "taşak", "tasak", "amcık",
+    "amcik", "kaltak", "fahişe", "fahise", "gavat", "lavuk", "gerizekalı",
+    "gerizekali", "aptal", "salak", "dangalak", "yavşak", "yavsak",
+  ];
+
+  function normalizeNickForCheck(str) {
+    return (str || "")
+      .toLocaleLowerCase("tr-TR")
+      .replace(/ı/g, "i")
+      .replace(/ğ/g, "g")
+      .replace(/ü/g, "u")
+      .replace(/ş/g, "s")
+      .replace(/ö/g, "o")
+      .replace(/ç/g, "c")
+      .replace(/[^a-z0-9\s]/g, " ")
+      .replace(/(.)\1{2,}/g, "$1");
+  }
+
+  function hasProfanity(raw) {
+    const norm = normalizeNickForCheck(raw);
+    const tokens = norm.split(/\s+/).filter(Boolean);
+    const compact = norm.replace(/\s+/g, "");
+    return CLIENT_BAD_WORDS.some((bad) => {
+      const b = normalizeNickForCheck(bad).trim();
+      if (tokens.includes(b)) return true;
+      return b.length >= 4 && compact.includes(b);
+    });
+  }
+
+  function cleanXssNick(raw) {
+    return String(raw || "")
+      .replace(/[<>&"'`\\]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .substring(0, 18);
+  }
+
   els.nicknameInput.addEventListener("input", () => {
-    const val = els.nicknameInput.value.trim();
-    els.btnStart.disabled = val.length === 0;
+    const cleaned = els.nicknameInput.value.replace(/[<>&"'`\\]/g, "");
+    if (cleaned !== els.nicknameInput.value) {
+      els.nicknameInput.value = cleaned;
+    }
+    els.btnStart.disabled = cleaned.trim().length === 0;
   });
 
   els.nicknameInput.addEventListener("keydown", (e) => {
@@ -204,12 +248,23 @@
   });
 
   els.btnStart.addEventListener("click", () => {
-    state.nickname = els.nicknameInput.value.trim();
-    if (!state.nickname) return;
+    const cleaned = cleanXssNick(els.nicknameInput.value);
+    if (!cleaned) return;
+
+    if (hasProfanity(cleaned)) {
+      alert("Lütfen uygun bir isim girin (küfür veya argo kullanılamaz).");
+      els.nicknameInput.value = "";
+      els.btnStart.disabled = true;
+      els.nicknameInput.focus();
+      return;
+    }
+
+    state.nickname = cleaned;
+    els.nicknameInput.value = cleaned;
 
     if (state.selectedMode === "MULTIPLAYER_VS") {
       const isAuto = els.radioAutoRoom ? els.radioAutoRoom.checked : true;
-      const customRoom = (!isAuto && els.roomInput) ? els.roomInput.value.trim() : null;
+      const customRoom = (!isAuto && els.roomInput) ? cleanXssNick(els.roomInput.value) : null;
 
       socket.emit("room:join", {
         roomId: customRoom,
@@ -638,6 +693,71 @@
     }
   }
 
+  /** Aktif kelimeyi kilitler ve bir sonraki kelimeye geçer (Masaüstü Space + Mobil Sanal Klavye) */
+  function lockActiveWordAndAdvance() {
+    if (state.isFinished) return;
+    const range = state.wordRanges[state.currentWordIdx];
+    if (!range) return;
+
+    // Kelime başında art arda boşluğa basılmasını engelle
+    if (state.currentTypedWord.length === 0) {
+      els.typingInput.value = "";
+      return;
+    }
+
+    if (state.selectedMode !== "MULTIPLAYER_VS" && !state.startTime) {
+      state.startTime = Date.now();
+      startTimer();
+    }
+    document.body.classList.add("focus-mode");
+
+    const expectedWord = state.targetText.slice(range.start, range.end);
+    const typedLen = state.currentTypedWord.length;
+    const isWordExact = state.currentTypedWord === expectedWord;
+
+    state.totalKeystrokes++;
+
+    if (typedLen === expectedWord.length) {
+      // Boşluk doğru pozisyonda basıldı
+      state.correctKeystrokes++;
+      if (range.spaceIdx !== -1) {
+        state.charElements[range.spaceIdx].classList.add("correct");
+      }
+      SoundFX.playKeySuccess();
+    } else {
+      // Kelime eksik bırakılıp boşluğa basıldı: kalan harfleri ve boşluğu hatalı işaretle
+      for (let i = range.start + typedLen; i < range.end; i++) {
+        state.charElements[i].classList.add("incorrect");
+      }
+      if (range.spaceIdx !== -1) {
+        state.charElements[range.spaceIdx].classList.add("incorrect");
+      }
+      state.errorCount++;
+      SoundFX.playKeyError();
+      shakeTextLine();
+      triggerChickAlert();
+    }
+
+    // Sadece tamamen doğru yazılmış kelimelerin karakter + boşluk sayısı Net WPM'e eklenir
+    if (isWordExact) {
+      state.lockedCorrectChars += expectedWord.length + (range.spaceIdx !== -1 ? 1 : 0);
+    }
+
+    // Sonraki kelimeye geç
+    state.currentWordIdx++;
+    state.currentTypedWord = "";
+    els.typingInput.value = "";
+
+    if (state.currentWordIdx >= state.wordRanges.length) {
+      state.currentIndex = state.targetText.length;
+      syncAfterKeystroke();
+      finishGame();
+    } else {
+      state.currentIndex = state.wordRanges[state.currentWordIdx].start;
+      syncAfterKeystroke();
+    }
+  }
+
   // Space ve Backspace için kelime kilitleme kontrolü
   els.typingInput.addEventListener("keydown", (e) => {
     if (state.isFinished) return;
@@ -655,61 +775,7 @@
     // 2. Space (Boşluk) veya son kelimede Enter: Kelimeyi kilitle ve sonraki kelimeye geç
     if (e.key === " " || (e.key === "Enter" && state.currentWordIdx === state.wordRanges.length - 1)) {
       e.preventDefault();
-
-      // Kelime başında art arda boşluğa basılmasını engelle
-      if (state.currentTypedWord.length === 0) return;
-
-      if (state.selectedMode !== "MULTIPLAYER_VS" && !state.startTime) {
-        state.startTime = Date.now();
-        startTimer();
-      }
-      document.body.classList.add("focus-mode");
-
-      const expectedWord = state.targetText.slice(range.start, range.end);
-      const typedLen = state.currentTypedWord.length;
-      const isWordExact = state.currentTypedWord === expectedWord;
-
-      state.totalKeystrokes++;
-
-      if (typedLen === expectedWord.length) {
-        // Boşluk doğru pozisyonda basıldı
-        state.correctKeystrokes++;
-        if (range.spaceIdx !== -1) {
-          state.charElements[range.spaceIdx].classList.add("correct");
-        }
-        SoundFX.playKeySuccess();
-      } else {
-        // Kelime eksik bırakılıp boşluğa basıldı: kalan harfleri ve boşluğu hatalı işaretle
-        for (let i = range.start + typedLen; i < range.end; i++) {
-          state.charElements[i].classList.add("incorrect");
-        }
-        if (range.spaceIdx !== -1) {
-          state.charElements[range.spaceIdx].classList.add("incorrect");
-        }
-        state.errorCount++;
-        SoundFX.playKeyError();
-        shakeTextLine();
-        triggerChickAlert();
-      }
-
-      // Sadece tamamen doğru yazılmış kelimelerin karakter + boşluk sayısı Net WPM'e eklenir
-      if (isWordExact) {
-        state.lockedCorrectChars += expectedWord.length + (range.spaceIdx !== -1 ? 1 : 0);
-      }
-
-      // Sonraki kelimeye geç
-      state.currentWordIdx++;
-      state.currentTypedWord = "";
-      els.typingInput.value = "";
-
-      if (state.currentWordIdx >= state.wordRanges.length) {
-        state.currentIndex = state.targetText.length;
-        syncAfterKeystroke();
-        finishGame();
-      } else {
-        state.currentIndex = state.wordRanges[state.currentWordIdx].start;
-        syncAfterKeystroke();
-      }
+      lockActiveWordAndAdvance();
     }
   });
 
@@ -718,9 +784,13 @@
     const range = state.wordRanges[state.currentWordIdx];
     if (!range) return;
 
+    const inputRaw = els.typingInput.value;
+    // Mobil sanal klavyelerde (Android/iOS) boşluk tuşu keydown yerine input event'i ile gelebilir
+    const hasTrailingSpace = /\s$/.test(inputRaw);
+
     const expectedWord = state.targetText.slice(range.start, range.end);
-    // Boşluk karakterleri keydown'da işlendiği için input içinden temizle
-    let rawVal = els.typingInput.value.replace(/ /g, "");
+    // Boşluk karakterlerini kelime metninden ayıkla
+    let rawVal = inputRaw.replace(/\s+/g, "");
     const prevVal = state.currentTypedWord;
 
     // Solo modda ilk tuşta zamanlayıcıyı başlat
@@ -792,6 +862,12 @@
       state.currentIndex = state.targetText.length;
       syncAfterKeystroke();
       finishGame();
+      return;
+    }
+
+    // Mobil klavyeden boşluk basıldıysa kelimeyi kilitle ve sonrakine geç
+    if (hasTrailingSpace) {
+      lockActiveWordAndAdvance();
     }
   });
 
@@ -880,10 +956,14 @@
   }
   chickLoop();
 
-  // Yazma alanına tıklanınca görünmez input'a odaklan
-  els.typingArea.addEventListener("click", () => {
-    if (!els.typingInput.disabled) els.typingInput.focus();
-  });
+  // Yazma alanına tıklanınca veya mobilde dokunulunca görünmez input'a odaklan (sanal klavyeyi aç)
+  function focusTypingInput() {
+    if (!els.typingInput.disabled && !state.isFinished) {
+      els.typingInput.focus({ preventScroll: true });
+    }
+  }
+  els.typingArea.addEventListener("click", focusTypingInput);
+  els.typingArea.addEventListener("touchend", focusTypingInput);
 
   // Oyun ekranındayken herhangi bir tuş input'a yönlendirilir
   window.addEventListener("keydown", (e) => {

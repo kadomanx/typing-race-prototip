@@ -94,6 +94,86 @@ function sortCategory(category) {
   });
 }
 
+// ── Küfür/Argo Filtresi, XSS Temizliği ve Deneme Sayacı ─────
+const BAD_WORDS = [
+  "amk", "aq", "amq", "oç", "oc", "piç", "pic", "sik", "siktir", "sikeyim",
+  "sikerim", "sokuk", "yarrak", "yarak", "göt", "gotveren", "orospu", "oruspu",
+  "kahpe", "pezevenk", "ibne", "puşt", "pust", "taşak", "tasak", "amcık",
+  "amcik", "kaltak", "fahişe", "fahise", "gavat", "lavuk", "gerizekalı",
+  "gerizekali", "aptal", "salak", "dangalak", "yavşak", "yavsak",
+];
+
+function normalizeForCheck(str) {
+  return (str || "")
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ı/g, "i")
+    .replace(/ğ/g, "g")
+    .replace(/ü/g, "u")
+    .replace(/ş/g, "s")
+    .replace(/ö/g, "o")
+    .replace(/ç/g, "c")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/(.)\1{2,}/g, "$1");
+}
+
+function containsProfanity(raw) {
+  const norm = normalizeForCheck(raw);
+  const tokens = norm.split(/\s+/).filter(Boolean);
+  const compact = norm.replace(/\s+/g, "");
+  return BAD_WORDS.some((bad) => {
+    const b = normalizeForCheck(bad).trim();
+    if (tokens.includes(b)) return true;
+    // 4+ harfli köklerin kelime içinde geçmesini de yakala
+    return b.length >= 4 && compact.includes(b);
+  });
+}
+
+let anonCounter = 0;
+
+/** XSS karakterlerini temizler, küfür varsa işaretler veya Anonim #X üretir */
+function sanitizeNickname(raw) {
+  const stripped = String(raw || "")
+    .replace(/[<>&"'`\\]/g, "")
+    .replace(/\s+#\d+$/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .substring(0, 18);
+
+  if (!stripped || containsProfanity(stripped)) {
+    anonCounter++;
+    return { valid: false, clean: `Anonim #${anonCounter}` };
+  }
+  return { valid: true, clean: stripped };
+}
+
+// Oturum bazlı aynı isimle kaçıncı kez oynandığını takip eder (büyük/küçük harf duyarsız)
+const attemptCounts = new Map();
+
+function seedAttemptCountsFromBoard() {
+  attemptCounts.clear();
+  for (const key of VALID_MODES) {
+    for (const entry of leaderboard[key] || []) {
+      const base = String(entry.nickname || "").replace(/\s+#\d+$/g, "").trim();
+      if (!base) continue;
+      const normKey = base.toLocaleLowerCase("tr-TR");
+      const match = String(entry.nickname || "").match(/#(\d+)$/);
+      const num = match ? Number(match[1]) : 1;
+      attemptCounts.set(normKey, Math.max(attemptCounts.get(normKey) || 0, num));
+    }
+  }
+}
+seedAttemptCountsFromBoard();
+
+/** Aynı isimle skor gönderildiğinde Ahmet, Ahmet #2, Ahmet #3 şeklinde numaralandırır */
+function getAttemptNickname(baseNick) {
+  const cleanBase = String(baseNick || "Anonim").replace(/\s+#\d+$/g, "").trim() || "Anonim";
+  if (/^Anonim #\d+$/i.test(baseNick)) return baseNick;
+  const key = cleanBase.toLocaleLowerCase("tr-TR");
+  const nextCount = (attemptCounts.get(key) || 0) + 1;
+  attemptCounts.set(key, nextCount);
+  return nextCount === 1 ? cleanBase : `${cleanBase} #${nextCount}`;
+}
+
 // ── Multiplayer Odaları (Room Management) ───────────────────
 // roomId => { id, hostId, status, text, finishCount, countdownTimer, players: { [socketId]: player } }
 const rooms = new Map();
@@ -255,9 +335,11 @@ io.on("connection", (socket) => {
     }
 
     const category = VALID_MODES.includes(mode) ? mode : "SOLO_TEXT";
+    const { clean: cleanBaseNick } = sanitizeNickname(nickname);
+    const numberedNick = getAttemptNickname(cleanBaseNick);
 
     const entry = {
-      nickname: nickname.trim().substring(0, 20),
+      nickname: numberedNick,
       wpm: safeWpm,
       accuracy: safeAcc,
       mode: category,
@@ -286,7 +368,10 @@ io.on("connection", (socket) => {
       return socket.emit("room:error", { message: "Lütfen bir isim girin." });
     }
 
-    const sanitizedNick = nickname.trim().substring(0, 20);
+    const { valid, clean: sanitizedNick } = sanitizeNickname(nickname);
+    if (!valid) {
+      return socket.emit("room:error", { message: "Lütfen uygun bir isim girin (küfür/argo kullanılamaz)." });
+    }
 
     // Önceden başka odadaysa ayrıl
     handlePlayerLeave(socket);
@@ -485,9 +570,10 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("room:player-finished", finishPayload);
     io.emit("tv:player-finished", finishPayload);
 
-    // 🏆 MULTIPLAYER_VS Genel Liderlik Tablosuna Ekle
+    // 🏆 MULTIPLAYER_VS Genel Liderlik Tablosuna Ekle (Deneme sayacı ile)
+    const numberedNick = getAttemptNickname(player.nickname);
     const entry = {
-      nickname: player.nickname,
+      nickname: numberedNick,
       wpm: player.wpm,
       accuracy: player.accuracy,
       rank: player.rank,
@@ -504,7 +590,7 @@ io.on("connection", (socket) => {
 
     saveScores();
     io.emit("leaderboard:update", leaderboard);
-    console.log(`🏁  [${roomId}] Derece #${player.rank}: ${player.nickname} (${player.wpm} WPM)`);
+    console.log(`🏁  [${roomId}] Derece #${player.rank}: ${entry.nickname} (${player.wpm} WPM)`);
 
     // Odadaki herkes bitirdi mi kontrolü
     const totalPlayers = Object.keys(room.players).length;
@@ -530,9 +616,11 @@ io.on("connection", (socket) => {
   socket.on("admin:clear-scores", ({ category }) => {
     if (category === "ALL") {
       leaderboard = createEmptyBoard();
-      console.log("🛠️ [Admin] Tüm skorlar temizlendi.");
+      attemptCounts.clear();
+      console.log("🛠️ [Admin] Tüm skorlar ve deneme sayaçları temizlendi.");
     } else if (VALID_MODES.includes(category)) {
       leaderboard[category] = [];
+      seedAttemptCountsFromBoard();
       console.log(`🛠️ [Admin] ${category} skorları temizlendi.`);
     }
     saveScores();
