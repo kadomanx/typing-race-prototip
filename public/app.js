@@ -1331,25 +1331,57 @@
     });
   }
 
-  // ── Tema Geçişi (Light / Dark) ───────────────────────────────
-  function applyTheme(theme) {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("typing_race_theme", theme);
+  // ── Çoklu Tema Yönetimi & Canlı Önizleme (6 Tema) ───────────
+  const THEMES = [
+    { id: "dark",    label: "Karbon Koyu",       short: "Tema: Karbon" },
+    { id: "light",   label: "Fildişi Açık",      short: "Tema: Fildişi" },
+    { id: "ocean",   label: "Buzul Okyanus",     short: "Tema: Okyanus" },
+    { id: "emerald", label: "Zümrüt Orman",      short: "Tema: Zümrüt" },
+    { id: "sunset",  label: "Gün Batımı",        short: "Tema: Gün Batımı" },
+    { id: "rainbow", label: "🌈 Gökkuşağı Parti", short: "Tema: 🌈 Gökkuşağı" },
+  ];
+
+  const themeChips = $$(".theme-chip");
+  const themeActiveLabel = $("#theme-active-label");
+
+  function applyTheme(themeId) {
+    const validTheme = THEMES.find((t) => t.id === themeId) || THEMES[0];
+    document.documentElement.setAttribute("data-theme", validTheme.id);
+    localStorage.setItem("typing_race_theme", validTheme.id);
+
     if (els.btnToggleTheme) {
-      // Buton, geçilecek temayı gösterir
-      els.btnToggleTheme.textContent = theme === "dark" ? "Açık tema" : "Koyu tema";
+      els.btnToggleTheme.textContent = validTheme.short;
     }
+    if (themeActiveLabel) {
+      themeActiveLabel.textContent = validTheme.label;
+    }
+    themeChips.forEach((chip) => {
+      chip.classList.toggle("active", chip.dataset.themeChoice === validTheme.id);
+    });
   }
 
   applyTheme(document.documentElement.getAttribute("data-theme") || "dark");
 
+  themeChips.forEach((chip) => {
+    chip.addEventListener("click", () => {
+      applyTheme(chip.dataset.themeChoice);
+    });
+  });
+
   if (els.btnToggleTheme) {
     els.btnToggleTheme.addEventListener("click", () => {
-      const current = document.documentElement.getAttribute("data-theme");
-      applyTheme(current === "dark" ? "light" : "dark");
-      // Tema değişince imleç konumu aynı kalır, yalnızca renk değişir
+      const current = document.documentElement.getAttribute("data-theme") || "dark";
+      const idx = THEMES.findIndex((t) => t.id === current);
+      const nextTheme = THEMES[(idx + 1) % THEMES.length];
+      applyTheme(nextTheme.id);
     });
   }
+
+  window.addEventListener("storage", (e) => {
+    if (e.key === "typing_race_theme" && e.newValue) {
+      applyTheme(e.newValue);
+    }
+  });
 
   // ══════════════════════════════════════════════════════════════
   //  9. GİZLİ ADMİN PANELİ (HOTKEY: Ctrl+Shift+A veya Alt+Shift+K)

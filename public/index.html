@@ -91,9 +91,9 @@
   <main class="app-main">
     <!-- ═══ EKRAN 1: Giriş ═══ -->
     <section id="screen-welcome" class="screen active">
-      <div class="card">
+      <div class="card welcome-card">
         <h1>Hızlı Yazma Yarışı</h1>
-        <p class="subtitle">İsmini yaz, modunu seç, başla.</p>
+        <p class="subtitle">İsmini yaz, modunu ve temanı seç, başla.</p>
 
         <div class="form-group">
           <label for="nickname-input">İsim</label>
@@ -135,6 +135,53 @@
             </label>
           </div>
           <input type="text" id="room-input" value="" placeholder="Örn: MASA-1" maxlength="15" autocomplete="off" style="display: none; margin-top: 0.5rem;" />
+        </div>
+
+        <!-- Tema Seçici & Canlı Yazma Önizlemesi -->
+        <div class="form-group theme-picker-group">
+          <div class="theme-picker-header">
+            <label>Tema ve canlı önizleme</label>
+            <span id="theme-active-label" class="theme-active-label">Karbon Koyu</span>
+          </div>
+
+          <div class="theme-grid" id="theme-selector">
+            <button class="theme-chip active" data-theme-choice="dark" type="button">
+              <span class="theme-swatch swatch-dark"></span>
+              <span>Karbon</span>
+            </button>
+            <button class="theme-chip" data-theme-choice="light" type="button">
+              <span class="theme-swatch swatch-light"></span>
+              <span>Fildişi</span>
+            </button>
+            <button class="theme-chip" data-theme-choice="ocean" type="button">
+              <span class="theme-swatch swatch-ocean"></span>
+              <span>Okyanus</span>
+            </button>
+            <button class="theme-chip" data-theme-choice="emerald" type="button">
+              <span class="theme-swatch swatch-emerald"></span>
+              <span>Zümrüt</span>
+            </button>
+            <button class="theme-chip" data-theme-choice="sunset" type="button">
+              <span class="theme-swatch swatch-sunset"></span>
+              <span>Gün Batımı</span>
+            </button>
+            <button class="theme-chip theme-chip-rainbow" data-theme-choice="rainbow" type="button">
+              <span class="theme-swatch swatch-rainbow"></span>
+              <span>🌈 Gökkuşağı</span>
+            </button>
+          </div>
+
+          <!-- Oyun başlamadan önce temanın konuşma balonu, harf ve imleç önizlemesi -->
+          <div class="theme-preview-wrap" aria-label="Tema yazma önizlemesi">
+            <div class="theme-preview-header">
+              <span class="preview-stat"><b>94</b> wpm</span>
+              <span class="preview-stat"><b>98%</b> doğruluk</span>
+              <span class="preview-badge">önizleme</span>
+            </div>
+            <div class="theme-preview-bubble">
+              <span class="word"><span class="char correct">h</span><span class="char correct">ı</span><span class="char correct">z</span><span class="char correct">l</span><span class="char correct">ı</span><span class="char correct">&nbsp;</span></span><span class="word"><span class="char correct">y</span><span class="char incorrect">e</span><span class="char correct">z</span><span class="char correct">m</span><span class="char correct">a</span><span class="char correct">&nbsp;</span></span><span class="word active-word"><span class="char correct">y</span><span class="char correct">a</span><span class="preview-caret"></span><span class="char">r</span><span class="char">ı</span><span class="char">ş</span><span class="char">ı</span></span>
+            </div>
+          </div>
         </div>
 
         <button id="btn-start" class="btn-primary" type="button" disabled>Başla</button>

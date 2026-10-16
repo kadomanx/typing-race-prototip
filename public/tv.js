@@ -27,12 +27,22 @@
     btnTheme: $("#btn-tv-theme"),
   };
 
-  // ── Tema Yönetimi (Light / Dark) ────────────────────────────
-  function applyTheme(theme) {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("typing_race_theme", theme);
+  // ── Tema Yönetimi (6 Tema + Sekmeler Arası Senkronizasyon) ──
+  const THEMES = [
+    { id: "dark",    short: "Tema: Karbon" },
+    { id: "light",   short: "Tema: Fildişi" },
+    { id: "ocean",   short: "Tema: Okyanus" },
+    { id: "emerald", short: "Tema: Zümrüt" },
+    { id: "sunset",  short: "Tema: Gün Batımı" },
+    { id: "rainbow", short: "Tema: 🌈 Gökkuşağı" },
+  ];
+
+  function applyTheme(themeId) {
+    const valid = THEMES.find((t) => t.id === themeId) || THEMES[0];
+    document.documentElement.setAttribute("data-theme", valid.id);
+    localStorage.setItem("typing_race_theme", valid.id);
     if (els.btnTheme) {
-      els.btnTheme.textContent = theme === "dark" ? "Açık tema" : "Koyu tema";
+      els.btnTheme.textContent = valid.short;
     }
   }
 
@@ -40,10 +50,18 @@
 
   if (els.btnTheme) {
     els.btnTheme.addEventListener("click", () => {
-      const current = document.documentElement.getAttribute("data-theme");
-      applyTheme(current === "dark" ? "light" : "dark");
+      const current = document.documentElement.getAttribute("data-theme") || "dark";
+      const idx = THEMES.findIndex((t) => t.id === current);
+      applyTheme(THEMES[(idx + 1) % THEMES.length].id);
     });
   }
+
+  // Ana oyun ekranından tema değiştirildiğinde TV ekranı da anında güncellensin
+  window.addEventListener("storage", (e) => {
+    if (e.key === "typing_race_theme" && e.newValue) {
+      applyTheme(e.newValue);
+    }
+  });
 
   // ── Kategori Bilgileri ──────────────────────────────────────
   const CATEGORIES = [

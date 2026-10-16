@@ -54,6 +54,116 @@
   --shadow-subtle: 0 4px 20px -2px rgba(0, 0, 0, 0.06);
 }
 
+/* Tema 3: Buzul Okyanus (Derin Lacivert & Camgöbeği) */
+[data-theme="ocean"] {
+  --bg: #071324;
+  --bg-pattern: rgba(0, 229, 255, 0.04);
+  --surface: rgba(11, 27, 48, 0.88);
+  --bubble-bg: #0d213b;
+  --overlay: rgba(6, 16, 32, 0.74);
+  --photo-filter: hue-rotate(175deg) brightness(0.75) saturate(1.25);
+  --glow: 0 0 6px rgba(0, 229, 255, 0.6);
+  --zzz: #38bdf8;
+  --surface-hover: #132d4f;
+  --border: #1b3b63;
+  --border-highlight: #28578f;
+  --text: #e0f2fe;
+  --text-muted: #7dd3fc;
+  --pending: #486b94;
+  --accent: #00e5ff;
+  --accent-soft: rgba(0, 229, 255, 0.11);
+  --accent-contrast: #061322;
+  --error: #ff5277;
+  --error-bg: rgba(255, 82, 119, 0.16);
+  --caret: #00e5ff;
+  --shadow-subtle: 0 4px 22px -2px rgba(0, 10, 28, 0.5);
+}
+
+/* Tema 4: Zümrüt Orman (Koyu Çam & Parlak Nane Yeşili) */
+[data-theme="emerald"] {
+  --bg: #081811;
+  --bg-pattern: rgba(16, 245, 160, 0.04);
+  --surface: rgba(13, 34, 24, 0.88);
+  --bubble-bg: #102a1e;
+  --overlay: rgba(6, 20, 14, 0.74);
+  --photo-filter: hue-rotate(95deg) brightness(0.72) saturate(1.2);
+  --glow: 0 0 6px rgba(16, 245, 160, 0.55);
+  --zzz: #a7f3d0;
+  --surface-hover: #173829;
+  --border: #1f4b37;
+  --border-highlight: #2d6b4f;
+  --text: #ecfdf5;
+  --text-muted: #6ee7b7;
+  --pending: #46735e;
+  --accent: #10f5a0;
+  --accent-soft: rgba(16, 245, 160, 0.11);
+  --accent-contrast: #061810;
+  --error: #fb7185;
+  --error-bg: rgba(251, 113, 133, 0.16);
+  --caret: #10f5a0;
+  --shadow-subtle: 0 4px 22px -2px rgba(0, 16, 8, 0.5);
+}
+
+/* Tema 5: Gün Batımı (Koyu Mürdüm & Sıcak Mercan Pembe) */
+[data-theme="sunset"] {
+  --bg: #1c0c1f;
+  --bg-pattern: rgba(255, 94, 138, 0.04);
+  --surface: rgba(38, 17, 43, 0.88);
+  --bubble-bg: #2a132f;
+  --overlay: rgba(24, 9, 28, 0.73);
+  --photo-filter: hue-rotate(285deg) brightness(0.75) saturate(1.3);
+  --glow: 0 0 6px rgba(255, 94, 138, 0.6);
+  --zzz: #f472b6;
+  --surface-hover: #381a3f;
+  --border: #512559;
+  --border-highlight: #73347d;
+  --text: #fdf2f8;
+  --text-muted: #f9a8d4;
+  --pending: #7d5285;
+  --accent: #ff5e8a;
+  --accent-soft: rgba(255, 94, 138, 0.12);
+  --accent-contrast: #1c0c1f;
+  --error: #ffbe0b;
+  --error-bg: rgba(255, 190, 11, 0.18);
+  --caret: #ff5e8a;
+  --shadow-subtle: 0 4px 22px -2px rgba(20, 4, 24, 0.5);
+}
+
+/* Tema 6: 🌈 Gökkuşağı Parti Modu (Aşırı Renkli, Eğlenceli ama Okunaklı!) */
+[data-theme="rainbow"] {
+  --bg: #140b29;
+  --bg-pattern: rgba(255, 255, 255, 0.05);
+  --surface: rgba(22, 13, 44, 0.88);
+  --bubble-bg: #160d2e;
+  --overlay: rgba(18, 9, 36, 0.55);
+  --photo-filter: saturate(2) brightness(0.85);
+  --glow: 0 0 10px rgba(255, 0, 200, 0.75), 0 0 18px rgba(0, 229, 255, 0.5);
+  --zzz: #ff77e9;
+  --surface-hover: #26174a;
+  --border: #5b34a8;
+  --border-highlight: #ff4ecd;
+  --text: #ffffff;
+  --text-muted: #d8b4fe;
+  --pending: #7e6aa8;
+  --accent: #ffde00;
+  --accent-soft: rgba(255, 78, 205, 0.14);
+  --accent-contrast: #120824;
+  --error: #ff2a55;
+  --error-bg: rgba(255, 42, 85, 0.25);
+  --caret: #00f5d4;
+  --shadow-subtle: 0 8px 30px -4px rgba(255, 0, 160, 0.35);
+  --rainbow-grad: linear-gradient(
+    90deg,
+    #ff2a55 0%,
+    #ff8a00 18%,
+    #ffe600 36%,
+    #10f5a0 54%,
+    #00d2ff 72%,
+    #b537f2 88%,
+    #ff2a55 100%
+  );
+}
+
 :root {
   --radius: 5px;
   --radius-lg: 8px;
@@ -98,6 +208,27 @@ body::after {
   background: var(--overlay);
   pointer-events: none;
   transition: background 0.3s ease;
+}
+
+/* 🌈 Gökkuşağı modunda arka planda akan canlı gökkuşağı aurorası */
+[data-theme="rainbow"] body::after {
+  background:
+    radial-gradient(circle at 15% 20%, rgba(255, 42, 85, 0.38), transparent 45%),
+    radial-gradient(circle at 85% 25%, rgba(0, 210, 255, 0.38), transparent 45%),
+    radial-gradient(circle at 50% 85%, rgba(16, 245, 160, 0.34), transparent 50%),
+    linear-gradient(125deg, rgba(255, 0, 102, 0.32), rgba(255, 153, 0, 0.26), rgba(255, 230, 0, 0.22), rgba(0, 230, 118, 0.28), rgba(0, 176, 255, 0.32), rgba(162, 0, 255, 0.35));
+  background-size: 200% 200%;
+  animation: rainbow-bg-shift 8s ease infinite;
+}
+
+@keyframes rainbow-bg-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes rainbow-slide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
 }
 
 html,
@@ -334,10 +465,20 @@ select {
 }
 
 /* ── Mod Seçici ──────────────────────────────────────────────── */
+.welcome-card {
+  max-width: 540px;
+}
+
 .mode-selector {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 0.5rem;
+}
+
+@media (max-width: 560px) {
+  .mode-selector {
+    grid-template-columns: 1fr;
+  }
 }
 
 .mode-btn {
@@ -347,7 +488,7 @@ select {
   align-items: flex-start;
   gap: 0.15rem;
   width: 100%;
-  padding: 0.7rem 0.85rem;
+  padding: 0.65rem 0.8rem;
   text-align: left;
   background: var(--bg);
   border: 1px solid var(--border);
@@ -377,12 +518,12 @@ select {
 }
 
 .mode-title {
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 600;
 }
 
 .mode-desc {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
 }
 
@@ -404,6 +545,218 @@ select {
   accent-color: var(--accent);
   cursor: pointer;
 }
+
+/* ── Tema Seçici & Canlı Yazma Önizlemesi ────────────────────── */
+.theme-picker-group {
+  margin-top: 0.25rem;
+}
+
+.theme-picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.45rem;
+}
+
+.theme-picker-header label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: lowercase;
+  letter-spacing: 0.05em;
+}
+
+.theme-active-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.45rem;
+  margin-bottom: 0.65rem;
+}
+
+.theme-chip {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.6rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: all 0.15s ease;
+}
+
+.theme-chip:hover {
+  border-color: var(--border-highlight);
+  background: var(--surface-hover);
+}
+
+.theme-chip.active {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: var(--glow);
+}
+
+.theme-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+.swatch-dark    { background: linear-gradient(135deg, #18181b 50%, #e2b714 50%); }
+.swatch-light   { background: linear-gradient(135deg, #f8f9fa 50%, #b45309 50%); border-color: rgba(0, 0, 0, 0.2); }
+.swatch-ocean   { background: linear-gradient(135deg, #071324 50%, #00e5ff 50%); }
+.swatch-emerald { background: linear-gradient(135deg, #081811 50%, #10f5a0 50%); }
+.swatch-sunset  { background: linear-gradient(135deg, #1c0c1f 50%, #ff5e8a 50%); }
+.swatch-rainbow {
+  background: conic-gradient(#ff2a55, #ff8a00, #ffe600, #10f5a0, #00d2ff, #b537f2, #ff2a55);
+  animation: spin-slow 4s linear infinite;
+}
+
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+
+.theme-preview-wrap {
+  padding: 0.65rem 0.85rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: all 0.25s ease;
+}
+
+.theme-preview-header {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 0.45rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.preview-stat b {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.preview-badge {
+  margin-left: auto;
+  padding: 0.1rem 0.45rem;
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.theme-preview-bubble {
+  position: relative;
+  padding: 0.6rem 0.85rem;
+  background: var(--bubble-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  line-height: 1.6rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  user-select: none;
+  transition: all 0.25s ease;
+}
+
+.preview-caret {
+  display: inline-block;
+  width: 2.5px;
+  height: 1.25rem;
+  background: var(--caret);
+  box-shadow: var(--glow);
+  border-radius: 1.5px;
+  vertical-align: middle;
+  margin: 0 1px;
+  animation: caret-blink 1s steps(1) infinite;
+}
+
+/* ── 🌈 Gökkuşağı Parti Modu Özel Efektleri ───────────────────── */
+[data-theme="rainbow"] .app-header {
+  border-bottom: 2px solid transparent;
+  background-image: linear-gradient(var(--bg), var(--bg)), var(--rainbow-grad);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  background-size: 200% 100%;
+  animation: rainbow-slide 4s linear infinite;
+}
+
+[data-theme="rainbow"] .brand span,
+[data-theme="rainbow"] .stat-value,
+[data-theme="rainbow"] .result-value {
+  background: var(--rainbow-grad);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: rainbow-slide 3s linear infinite;
+}
+
+[data-theme="rainbow"] .card,
+[data-theme="rainbow"] .typing-area,
+[data-theme="rainbow"] .theme-preview-bubble {
+  border: 2px solid transparent;
+  background-image: linear-gradient(var(--bubble-bg), var(--bubble-bg)), var(--rainbow-grad);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  background-size: 200% 100%;
+  animation: rainbow-slide 5s linear infinite;
+}
+
+[data-theme="rainbow"] .btn-primary {
+  background: var(--rainbow-grad);
+  background-size: 200% auto;
+  color: #120824;
+  font-weight: 700;
+  border: none;
+  box-shadow: 0 0 14px rgba(255, 78, 205, 0.45);
+  animation: rainbow-slide 3.5s linear infinite;
+}
+
+[data-theme="rainbow"] .caret,
+[data-theme="rainbow"] .preview-caret {
+  width: 3px;
+  background: linear-gradient(180deg, #ff2a55, #ffe600, #10f5a0, #00d2ff, #b537f2);
+  box-shadow: 0 0 8px #ff2a55, 0 0 14px #00d2ff;
+}
+
+/* Gökkuşağı modunda doğru yazılan harfler rengarenk ama yüksek kontrastlı okunur */
+[data-theme="rainbow"] .word:nth-child(6n + 1) .char.correct { color: #ff6b8b; text-shadow: 0 0 6px rgba(255, 107, 139, 0.35); }
+[data-theme="rainbow"] .word:nth-child(6n + 2) .char.correct { color: #ffaa4c; text-shadow: 0 0 6px rgba(255, 170, 76, 0.35); }
+[data-theme="rainbow"] .word:nth-child(6n + 3) .char.correct { color: #ffe600; text-shadow: 0 0 6px rgba(255, 230, 0, 0.35); }
+[data-theme="rainbow"] .word:nth-child(6n + 4) .char.correct { color: #2ed573; text-shadow: 0 0 6px rgba(46, 213, 115, 0.35); }
+[data-theme="rainbow"] .word:nth-child(6n + 5) .char.correct { color: #18dcff; text-shadow: 0 0 6px rgba(24, 220, 255, 0.35); }
+[data-theme="rainbow"] .word:nth-child(6n + 6) .char.correct { color: #d68aff; text-shadow: 0 0 6px rgba(214, 138, 255, 0.35); }
+
+[data-theme="rainbow"] .track-row.is-self .track-progress-fill {
+  background: var(--rainbow-grad);
+  background-size: 200% 100%;
+  animation: rainbow-slide 2.5s linear infinite;
+}
+
+[data-theme="rainbow"] .chick-svg {
+  filter: drop-shadow(0 0 8px rgba(255, 100, 220, 0.55));
+}
+
+[data-theme="rainbow"] .chick-zzz span:nth-child(1) { color: #ff5e8a; }
+[data-theme="rainbow"] .chick-zzz span:nth-child(2) { color: #ffe600; }
+[data-theme="rainbow"] .chick-zzz span:nth-child(3) { color: #00e5ff; }
 
 /* ── Lobi ────────────────────────────────────────────────────── */
 .lobby-card {

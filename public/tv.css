@@ -38,6 +38,84 @@
   --shadow-subtle: 0 4px 20px -2px rgba(0, 0, 0, 0.06);
 }
 
+[data-theme="ocean"] {
+  --bg: #071324;
+  --surface: #0d213b;
+  --surface-hover: #132d4f;
+  --border: #1b3b63;
+  --border-highlight: #28578f;
+  --text: #e0f2fe;
+  --text-muted: #7dd3fc;
+  --pending: #486b94;
+  --accent: #00e5ff;
+  --accent-contrast: #061322;
+  --accent-soft: rgba(0, 229, 255, 0.12);
+  --error: #ff5277;
+  --dot: rgba(0, 229, 255, 0.05);
+  --shadow-subtle: 0 4px 22px -2px rgba(0, 10, 28, 0.5);
+}
+
+[data-theme="emerald"] {
+  --bg: #081811;
+  --surface: #102a1e;
+  --surface-hover: #173829;
+  --border: #1f4b37;
+  --border-highlight: #2d6b4f;
+  --text: #ecfdf5;
+  --text-muted: #6ee7b7;
+  --pending: #46735e;
+  --accent: #10f5a0;
+  --accent-contrast: #061810;
+  --accent-soft: rgba(16, 245, 160, 0.12);
+  --error: #fb7185;
+  --dot: rgba(16, 245, 160, 0.05);
+  --shadow-subtle: 0 4px 22px -2px rgba(0, 16, 8, 0.5);
+}
+
+[data-theme="sunset"] {
+  --bg: #1c0c1f;
+  --surface: #2a132f;
+  --surface-hover: #381a3f;
+  --border: #512559;
+  --border-highlight: #73347d;
+  --text: #fdf2f8;
+  --text-muted: #f9a8d4;
+  --pending: #7d5285;
+  --accent: #ff5e8a;
+  --accent-contrast: #1c0c1f;
+  --accent-soft: rgba(255, 94, 138, 0.12);
+  --error: #ffbe0b;
+  --dot: rgba(255, 94, 138, 0.05);
+  --shadow-subtle: 0 4px 22px -2px rgba(20, 4, 24, 0.5);
+}
+
+[data-theme="rainbow"] {
+  --bg: #140b29;
+  --surface: rgba(22, 13, 44, 0.9);
+  --surface-hover: #26174a;
+  --border: #5b34a8;
+  --border-highlight: #ff4ecd;
+  --text: #ffffff;
+  --text-muted: #d8b4fe;
+  --pending: #7e6aa8;
+  --accent: #ffde00;
+  --accent-contrast: #120824;
+  --accent-soft: rgba(255, 78, 205, 0.16);
+  --error: #ff2a55;
+  --dot: rgba(255, 255, 255, 0.06);
+  --shadow-subtle: 0 8px 30px -4px rgba(255, 0, 160, 0.35);
+  --rainbow-grad: linear-gradient(
+    90deg,
+    #ff2a55 0%,
+    #ff8a00 18%,
+    #ffe600 36%,
+    #10f5a0 54%,
+    #00d2ff 72%,
+    #b537f2 88%,
+    #ff2a55 100%
+  );
+}
+
 :root {
   --radius: 5px;
   --radius-lg: 8px;
@@ -63,6 +141,57 @@ html, body {
   -webkit-font-smoothing: antialiased;
   user-select: none;
   transition: background-color 0.2s, color 0.2s;
+}
+
+[data-theme="rainbow"] body {
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(255, 42, 85, 0.32), transparent 45%),
+    radial-gradient(circle at 85% 25%, rgba(0, 210, 255, 0.32), transparent 45%),
+    radial-gradient(circle at 50% 85%, rgba(16, 245, 160, 0.28), transparent 50%),
+    linear-gradient(125deg, rgba(255, 0, 102, 0.22), rgba(255, 153, 0, 0.18), rgba(0, 230, 118, 0.2), rgba(0, 176, 255, 0.24), rgba(162, 0, 255, 0.26));
+  background-size: 200% 200%;
+  animation: tv-rainbow-bg 8s ease infinite;
+}
+
+@keyframes tv-rainbow-bg {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes tv-rainbow-slide {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+[data-theme="rainbow"] .tv-header,
+[data-theme="rainbow"] .tv-panel,
+[data-theme="rainbow"] .tv-room-card {
+  border-color: transparent;
+  background-image: linear-gradient(var(--surface), var(--surface)), var(--rainbow-grad);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  background-size: 200% 100%;
+  animation: tv-rainbow-slide 5s linear infinite;
+}
+
+[data-theme="rainbow"] .tv-brand h1 span,
+[data-theme="rainbow"] .pill-value,
+[data-theme="rainbow"] .col-wpm {
+  background: var(--rainbow-grad);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: tv-rainbow-slide 3s linear infinite;
+}
+
+[data-theme="rainbow"] .tv-progress-fill,
+[data-theme="rainbow"] .tv-tab.active,
+[data-theme="rainbow"] .ticker-title {
+  background: var(--rainbow-grad) !important;
+  background-size: 200% 100% !important;
+  color: #120824 !important;
+  animation: tv-rainbow-slide 3s linear infinite;
 }
 
 .tv-body { display: flex; flex-direction: column; height: 100vh; }
