@@ -14,7 +14,6 @@ const { VALID_MODES, getRandomText } = require("./texts");
 // ── Yapılandırma ────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 const SCORES_FILE = path.join(__dirname, "scores.json");
-const MAX_SCORES_PER_CATEGORY = 10;  // Her kategori için Top 10
 const MAX_PLAYERS_PER_ROOM = 4;      // Stand maçları için ideal oda kapasitesi
 
 // ── Anti-Cheat & Sanity Check Sınırları ─────────────────────
@@ -35,7 +34,7 @@ const io = new Server(server, {
 // Statik dosyaları sun (public/ klasörü)
 app.use(express.static(path.join(__dirname, "public")));
 
-// ── Skor Yönetimi (Kategori Bazlı) ─────────────────────────
+// ── Skor Yönetimi (Kategori Bazlı - Sınırsız Liste) ─────────
 let leaderboard = loadScores();
 
 /**
@@ -49,7 +48,7 @@ function loadScores() {
       if (Array.isArray(raw)) {
         console.log("📦  Eski skor formatı algılandı, SOLO_TEXT'e taşınıyor…");
         const migrated = createEmptyBoard();
-        migrated.SOLO_TEXT = raw.slice(0, MAX_SCORES_PER_CATEGORY);
+        migrated.SOLO_TEXT = raw;
         return migrated;
       }
 
@@ -349,10 +348,6 @@ io.on("connection", (socket) => {
     leaderboard[category].push(entry);
     sortCategory(category);
 
-    if (leaderboard[category].length > MAX_SCORES_PER_CATEGORY) {
-      leaderboard[category] = leaderboard[category].slice(0, MAX_SCORES_PER_CATEGORY);
-    }
-
     saveScores();
     io.emit("leaderboard:update", leaderboard);
     console.log(`🏆  [${category}] Yeni solo skor: ${entry.nickname} → ${entry.wpm} WPM, %${entry.accuracy}`);
@@ -584,10 +579,6 @@ io.on("connection", (socket) => {
     leaderboard.MULTIPLAYER_VS.push(entry);
     sortCategory("MULTIPLAYER_VS");
 
-    if (leaderboard.MULTIPLAYER_VS.length > MAX_SCORES_PER_CATEGORY) {
-      leaderboard.MULTIPLAYER_VS = leaderboard.MULTIPLAYER_VS.slice(0, MAX_SCORES_PER_CATEGORY);
-    }
-
     saveScores();
     io.emit("leaderboard:update", leaderboard);
     console.log(`🏁  [${roomId}] Derece #${player.rank}: ${entry.nickname} (${player.wpm} WPM)`);
@@ -640,9 +631,6 @@ io.on("connection", (socket) => {
     };
     leaderboard[category].push(entry);
     sortCategory(category);
-    if (leaderboard[category].length > MAX_SCORES_PER_CATEGORY) {
-      leaderboard[category] = leaderboard[category].slice(0, MAX_SCORES_PER_CATEGORY);
-    }
     saveScores();
     io.emit("leaderboard:update", leaderboard);
     socket.emit("admin:action-success", { message: `Test skoru eklendi: ${entry.nickname} (${entry.wpm} WPM)` });
