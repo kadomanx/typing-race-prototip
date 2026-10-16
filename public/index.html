@@ -200,21 +200,55 @@
           </div>
         </div>
 
-        <!-- Yazma alanı: input görünmez, metin span'lerle çizilir, imleç metin display içinde -->
-        <div id="typing-area" class="typing-area">
-          <div id="text-display" class="text-display">
-            <div id="caret" class="caret"></div>
+        <!-- Konuşma balonu: üstünde civciv oturur; input görünmez, metin span'lerle çizilir -->
+        <div class="speech-wrap">
+          <div id="interactive-chick" class="chick" data-state="sleeping" aria-hidden="true">
+            <div class="chick-zzz"><span>z</span><span>z</span><span>Z</span></div>
+            <svg class="chick-svg" viewBox="0 0 100 92" xmlns="http://www.w3.org/2000/svg">
+              <!-- ayaklar -->
+              <path class="chick-feet" d="M40 80 V89 M34 89 H46 M60 80 V89 M54 89 H66" />
+              <!-- tüy tutamı -->
+              <path class="chick-tuft" d="M44 22 Q42 12 47 8 M50 21 Q50 9 55 6 M56 22 Q60 13 64 12" />
+              <!-- gövde + kanatlar -->
+              <ellipse class="chick-wing" cx="17" cy="56" rx="9" ry="14" transform="rotate(14 17 56)" />
+              <ellipse class="chick-wing" cx="83" cy="56" rx="9" ry="14" transform="rotate(-14 83 56)" />
+              <ellipse class="chick-body" cx="50" cy="52" rx="35" ry="30" />
+              <circle class="chick-cheek" cx="27" cy="58" r="5" />
+              <circle class="chick-cheek" cx="73" cy="58" r="5" />
+              <!-- gözler -->
+              <g class="eye eye-left">
+                <circle class="eye-white" cx="37" cy="47" r="8" />
+                <circle class="pupil" cx="37" cy="47" r="4" />
+                <path class="eye-closed" d="M30 48 Q37 54 44 48" />
+              </g>
+              <g class="eye eye-right">
+                <circle class="eye-white" cx="63" cy="47" r="8" />
+                <circle class="pupil" cx="63" cy="47" r="4" />
+                <path class="eye-closed" d="M56 48 Q63 54 70 48" />
+              </g>
+              <!-- gaga -->
+              <path class="chick-beak" d="M43 56 Q50 53 57 56 L50 65 Z" />
+              <!-- şok ünlemi -->
+              <text class="chick-alert-mark" x="88" y="22">!</text>
+            </svg>
           </div>
-          <input
-            type="text"
-            id="typing-input"
-            class="typing-input"
-            autocomplete="off"
-            autocorrect="off"
-            autocapitalize="off"
-            spellcheck="false"
-            aria-label="Yazma alanı"
-          />
+
+          <!-- Yazma alanı: input görünmez, metin span'lerle çizilir, imleç metin display içinde -->
+          <div id="typing-area" class="typing-area">
+            <div id="text-display" class="text-display">
+              <div id="caret" class="caret"></div>
+            </div>
+            <input
+              type="text"
+              id="typing-input"
+              class="typing-input"
+              autocomplete="off"
+              autocorrect="off"
+              autocapitalize="off"
+              spellcheck="false"
+              aria-label="Yazma alanı"
+            />
+          </div>
         </div>
 
         <p class="typing-hint fade-on-focus">Yazmaya başlamak için doğrudan klavyeye bas.</p>

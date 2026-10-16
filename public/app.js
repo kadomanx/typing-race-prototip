@@ -484,9 +484,11 @@
       els.textDisplay.scrollTop = 0;
     }
 
-    // İmleci piksel hassasiyetiyle hizala (scroll farkını çıkar)
-    const topPos = (targetTop - els.textDisplay.scrollTop) + (targetHeight - caretHeight) / 2;
-    els.caret.style.transform = `translate3d(${targetLeft}px, ${topPos}px, 0)`;
+    // İmleç, kaydırılan #text-display'in İÇİNDE (absolute) olduğundan içerikle birlikte
+    // kayar; bu yüzden scrollTop çıkarılmaz. Konum: left/top (CSS: transition left 0.1s).
+    const topPos = targetTop + (targetHeight - caretHeight) / 2;
+    els.caret.style.left = `${targetLeft}px`;
+    els.caret.style.top = `${topPos}px`;
 
     // Yazarken imleç sabit kalsın, durunca yanıp sönsün
     els.caret.classList.add("typing");
@@ -498,8 +500,10 @@
     state.currentIndex = 0;
     state.correctCount = 0;
     state.totalKeystrokes = 0;
+    state.errorCount = 0;
     state.startTime = null;
     state.isFinished = false;
+    if (typeof resetChick === "function") resetChick();
 
     if (state.timerInterval) {
       clearInterval(state.timerInterval);
@@ -560,11 +564,14 @@
       if (inputVal[lastCharIdx] === state.targetText[lastCharIdx]) {
         SoundFX.playKeySuccess();
       } else {
+        state.errorCount = (state.errorCount || 0) + 1;
         SoundFX.playKeyError();
         shakeTextLine();
+        triggerChickAlert();
       }
     }
 
+    lastKeyTime = performance.now();
     updateCaret();
     const stats = updateStats();
 
@@ -586,16 +593,90 @@
     }
   });
 
-  /** Hatalı tuşta tüm yazma satırını 0.2sn titret */
+  /** Hatalı tuşta tüm yazma kutusunu (konuşma balonu) 0.2sn titret */
   function shakeTextLine() {
-    els.textDisplay.classList.remove("shake");
-    void els.textDisplay.offsetWidth; // animasyonu yeniden tetikle
-    els.textDisplay.classList.add("shake");
+    els.typingArea.classList.remove("shake");
+    void els.typingArea.offsetWidth; // animasyonu yeniden tetikle
+    els.typingArea.classList.add("shake");
   }
 
-  els.textDisplay.addEventListener("animationend", () => {
-    els.textDisplay.classList.remove("shake");
+  els.typingArea.addEventListener("animationend", (e) => {
+    if (e.target === els.typingArea) els.typingArea.classList.remove("shake");
   });
+
+  // ══════════════════════════════════════════════════════════════
+  //  5b. ETKİLEŞİMLİ CİVCİV (göz takibi + davranış durumları)
+  //  Durumlar (#interactive-chick[data-state]):
+  //    sleeping : yazmıyor / WPM < 30  → gözler kapalı + yeşil Zzz
+  //    active   : normal hızda yazıyor → gözler açık, imleci (.caret) takip eder
+  //    alert    : yanlış tuş           → gözler kocaman, "!" ve oyuncuya bakış
+  // ══════════════════════════════════════════════════════════════
+  const chick = {
+    root: $("#interactive-chick"),
+    eyes: $$("#interactive-chick .eye-white"),
+    pupils: $$("#interactive-chick .pupil"),
+  };
+  const CHICK_SLEEP_WPM = 30;     // bu hızın altında civciv uyur
+  const CHICK_IDLE_MS = 2500;     // bu süre tuşa basılmazsa civciv uyur
+  const CHICK_ALERT_MS = 1100;    // yanlış tuş sonrası şok süresi
+  let lastKeyTime = 0;
+  let chickAlertUntil = 0;
+
+  function setChickState(next) {
+    if (chick.root && chick.root.dataset.state !== next) chick.root.dataset.state = next;
+  }
+
+  /** Yanlış harfte civciv şok geçirir ve oyuncuya bakar */
+  function triggerChickAlert() {
+    chickAlertUntil = performance.now() + CHICK_ALERT_MS;
+    setChickState("alert");
+  }
+
+  function resetChick() {
+    lastKeyTime = 0;
+    chickAlertUntil = 0;
+    setChickState("sleeping");
+  }
+
+  function evaluateChickState() {
+    const now = performance.now();
+    if (now < chickAlertUntil) return setChickState("alert");
+
+    const wpm = Number(els.statWpm.textContent) || 0;
+    const typing = !!state.startTime && !state.isFinished;
+    const idle = now - lastKeyTime > CHICK_IDLE_MS;
+    setChickState(!typing || idle || wpm < CHICK_SLEEP_WPM ? "sleeping" : "active");
+  }
+
+  /** Her karede çalışır: durumu günceller, aktifken göz bebeklerini imlece çevirir */
+  function chickLoop() {
+    requestAnimationFrame(chickLoop);
+    if (!chick.root || !screens.game.classList.contains("active")) return;
+
+    evaluateChickState();
+
+    if (chick.root.dataset.state !== "active" || !els.caret) {
+      // uyurken / şokta bebekler merkezde (alert = doğrudan oyuncuya bakış)
+      chick.pupils.forEach((p) => (p.style.transform = "translate(0px, 0px)"));
+      return;
+    }
+
+    const c = els.caret.getBoundingClientRect();
+    const cx = c.left + c.width / 2;
+    const cy = c.top + c.height / 2;
+    const MAX = 3; // göz bebeğinin SVG birimi cinsinden azami kayması
+
+    chick.eyes.forEach((eye, i) => {
+      const r = eye.getBoundingClientRect();
+      const dx = cx - (r.left + r.width / 2);
+      const dy = cy - (r.top + r.height / 2);
+      const dist = Math.hypot(dx, dy) || 1;
+      const k = Math.min(1, dist / 40);
+      chick.pupils[i].style.transform =
+        `translate(${((dx / dist) * MAX * k).toFixed(2)}px, ${((dy / dist) * MAX * k).toFixed(2)}px)`;
+    });
+  }
+  chickLoop();
 
   // Yazma alanına tıklanınca görünmez input'a odaklan
   els.typingArea.addEventListener("click", () => {
