@@ -94,12 +94,18 @@ function sortCategory(category) {
 }
 
 // ── Küfür/Argo Filtresi, XSS Temizliği ve Deneme Sayacı ─────
+const MAX_NICK_LEN = 25;
 const BAD_WORDS = [
   "amk", "aq", "amq", "oç", "oc", "piç", "pic", "sik", "siktir", "sikeyim",
-  "sikerim", "sokuk", "yarrak", "yarak", "göt", "gotveren", "orospu", "oruspu",
-  "kahpe", "pezevenk", "ibne", "puşt", "pust", "taşak", "tasak", "amcık",
-  "amcik", "kaltak", "fahişe", "fahise", "gavat", "lavuk", "gerizekalı",
-  "gerizekali", "aptal", "salak", "dangalak", "yavşak", "yavsak",
+  "sikerim", "sikik", "sikis", "sikiş", "sokuk", "sokarim", "sokarım", "koyayim",
+  "koyayım", "yarrak", "yarak", "göt", "got", "gotveren", "götveren", "orospu",
+  "oruspu", "kahpe", "pezevenk", "ibne", "puşt", "pust", "taşak", "tasak",
+  "amcık", "amcik", "amina", "amına", "amini", "amını", "kaltak", "fahişe",
+  "fahise", "gavat", "lavuk", "gerizekalı", "gerizekali", "aptal", "salak",
+  "dangalak", "yavşak", "yavsak", "şerefsiz", "serefsiz", "piçkurusu", "am",
+  "mk", "mq", "sg", "skm", "sktr", "bok", "döl", "penis", "vajina", "porno",
+  "seks", "sex", "fuck", "shit", "bitch", "dick", "pussy", "asshole", "cunt",
+  "nigger", "faggot", "whore", "slut",
 ];
 
 function normalizeForCheck(str) {
@@ -111,36 +117,38 @@ function normalizeForCheck(str) {
     .replace(/ş/g, "s")
     .replace(/ö/g, "o")
     .replace(/ç/g, "c")
+    .replace(/0/g, "o")
+    .replace(/1/g, "i")
+    .replace(/3/g, "e")
+    .replace(/4/g, "a")
+    .replace(/5/g, "s")
+    .replace(/7/g, "t")
     .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/(.)\1{2,}/g, "$1");
+    .replace(/(.)\1{2,}/g, "$1")
+    .replace(/(?:^|\s)([a-z0-9])(?:\s+[a-z0-9])+(?=\s|$)/g, (m) => " " + m.replace(/\s+/g, ""));
 }
 
 function containsProfanity(raw) {
   const norm = normalizeForCheck(raw);
   const tokens = norm.split(/\s+/).filter(Boolean);
-  const compact = norm.replace(/\s+/g, "");
   return BAD_WORDS.some((bad) => {
     const b = normalizeForCheck(bad).trim();
     if (tokens.includes(b)) return true;
-    // 4+ harfli köklerin kelime içinde geçmesini de yakala
-    return b.length >= 4 && compact.includes(b);
+    return b.length >= 4 && tokens.some((t) => t.includes(b));
   });
 }
 
-let anonCounter = 0;
-
-/** XSS karakterlerini temizler, küfür varsa işaretler veya Anonim #X üretir */
+/** XSS karakterlerini temizler, uygunsuz isimleri reddeder (valid: false) */
 function sanitizeNickname(raw) {
   const stripped = String(raw || "")
     .replace(/[<>&"'`\\]/g, "")
     .replace(/\s+#\d+$/g, "")
     .replace(/\s+/g, " ")
     .trim()
-    .substring(0, 18);
+    .substring(0, MAX_NICK_LEN);
 
   if (!stripped || containsProfanity(stripped)) {
-    anonCounter++;
-    return { valid: false, clean: `Anonim #${anonCounter}` };
+    return { valid: false, clean: "" };
   }
   return { valid: true, clean: stripped };
 }
@@ -289,6 +297,12 @@ io.on("connection", (socket) => {
 
   // ── Solo Mod Metin İsteği ───────────────────────────────────
   socket.on("game:request-text", (data) => {
+    if (data && data.nickname !== undefined) {
+      const { valid } = sanitizeNickname(data.nickname);
+      if (!valid) {
+        return socket.emit("game:error", { message: "Uygunsuz bir isim girdiniz, lütfen değiştirin." });
+      }
+    }
     const mode = data && VALID_MODES.includes(data.mode) ? data.mode : "SOLO_TEXT";
     const text = getRandomText(mode);
 
@@ -334,7 +348,10 @@ io.on("connection", (socket) => {
     }
 
     const category = VALID_MODES.includes(mode) ? mode : "SOLO_TEXT";
-    const { clean: cleanBaseNick } = sanitizeNickname(nickname);
+    const { valid, clean: cleanBaseNick } = sanitizeNickname(nickname);
+    if (!valid) {
+      return socket.emit("game:error", { message: "Uygunsuz bir isim girdiniz, lütfen değiştirin." });
+    }
     const numberedNick = getAttemptNickname(cleanBaseNick);
 
     const entry = {
@@ -623,7 +640,7 @@ io.on("connection", (socket) => {
   socket.on("admin:add-test-score", ({ nickname, wpm, accuracy, mode }) => {
     const category = VALID_MODES.includes(mode) ? mode : "SOLO_TEXT";
     const entry = {
-      nickname: (nickname || "TestOyuncu").trim().substring(0, 20),
+      nickname: (nickname || "TestOyuncu").trim().substring(0, MAX_NICK_LEN),
       wpm: Math.round(Number(wpm) || 85),
       accuracy: Math.round(Number(accuracy) || 98),
       mode: category,

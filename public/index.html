@@ -74,7 +74,7 @@
       <div class="admin-section">
         <h4>Test skoru ekle</h4>
         <div class="admin-test-form">
-          <input type="text" id="admin-test-nick" placeholder="İsim" />
+          <input type="text" id="admin-test-nick" placeholder="İsim" maxlength="25" />
           <input type="number" id="admin-test-wpm" placeholder="WPM" value="88" min="20" max="180" />
           <select id="admin-test-mode">
             <option value="MULTIPLAYER_VS">Arena</option>
@@ -97,7 +97,8 @@
 
         <div class="form-group">
           <label for="nickname-input">İsim</label>
-          <input type="text" id="nickname-input" placeholder="Adını gir" maxlength="20" autocomplete="off" />
+          <input type="text" id="nickname-input" placeholder="Adını gir (maks. 25 karakter)" maxlength="25" autocomplete="off" />
+          <p id="nickname-error" class="nickname-error" style="display: none;">Uygunsuz bir isim girdiniz, lütfen değiştirin.</p>
         </div>
 
         <div class="form-group">

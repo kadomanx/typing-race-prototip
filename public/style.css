@@ -419,6 +419,18 @@ select {
   box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
+.form-group input[type="text"].input-error {
+  border-color: var(--error);
+  box-shadow: 0 0 0 2px var(--error-bg);
+}
+
+.nickname-error {
+  margin-top: 0.4rem;
+  font-size: 0.78rem;
+  color: var(--error);
+  font-weight: 500;
+}
+
 /* ── Butonlar ────────────────────────────────────────────────── */
 .btn-primary {
   width: 100%;

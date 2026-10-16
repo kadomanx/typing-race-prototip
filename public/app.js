@@ -26,6 +26,7 @@
 
     // Hoşgeldin Ekranı
     nicknameInput: $("#nickname-input"),
+    nicknameError: $("#nickname-error"),
     btnStart: $("#btn-start"),
     modeBtns: $$(".mode-btn"),
     arenaRoomGroup: $("#arena-room-group"),
@@ -192,13 +193,19 @@
     });
   }
 
-  // ── İsim / Rumuz Küfür & XSS Filtresi ──────────────────────
+  // ── İsim / Rumuz Küfür & XSS Filtresi (Maks 25 Karakter, Boşluk Destekli) ──
+  const MAX_NICK_LEN = 25;
   const CLIENT_BAD_WORDS = [
     "amk", "aq", "amq", "oç", "oc", "piç", "pic", "sik", "siktir", "sikeyim",
-    "sikerim", "sokuk", "yarrak", "yarak", "göt", "gotveren", "orospu", "oruspu",
-    "kahpe", "pezevenk", "ibne", "puşt", "pust", "taşak", "tasak", "amcık",
-    "amcik", "kaltak", "fahişe", "fahise", "gavat", "lavuk", "gerizekalı",
-    "gerizekali", "aptal", "salak", "dangalak", "yavşak", "yavsak",
+    "sikerim", "sikik", "sikis", "sikiş", "sokuk", "sokarim", "sokarım", "koyayim",
+    "koyayım", "yarrak", "yarak", "göt", "got", "gotveren", "götveren", "orospu",
+    "oruspu", "kahpe", "pezevenk", "ibne", "puşt", "pust", "taşak", "tasak",
+    "amcık", "amcik", "amina", "amına", "amini", "amını", "kaltak", "fahişe",
+    "fahise", "gavat", "lavuk", "gerizekalı", "gerizekali", "aptal", "salak",
+    "dangalak", "yavşak", "yavsak", "şerefsiz", "serefsiz", "piçkurusu", "am",
+    "mk", "mq", "sg", "skm", "sktr", "bok", "döl", "penis", "vajina", "porno",
+    "seks", "sex", "fuck", "shit", "bitch", "dick", "pussy", "asshole", "cunt",
+    "nigger", "faggot", "whore", "slut",
   ];
 
   function normalizeNickForCheck(str) {
@@ -210,18 +217,24 @@
       .replace(/ş/g, "s")
       .replace(/ö/g, "o")
       .replace(/ç/g, "c")
+      .replace(/0/g, "o")
+      .replace(/1/g, "i")
+      .replace(/3/g, "e")
+      .replace(/4/g, "a")
+      .replace(/5/g, "s")
+      .replace(/7/g, "t")
       .replace(/[^a-z0-9\s]/g, " ")
-      .replace(/(.)\1{2,}/g, "$1");
+      .replace(/(.)\1{2,}/g, "$1")
+      .replace(/(?:^|\s)([a-z0-9])(?:\s+[a-z0-9])+(?=\s|$)/g, (m) => " " + m.replace(/\s+/g, ""));
   }
 
   function hasProfanity(raw) {
     const norm = normalizeNickForCheck(raw);
     const tokens = norm.split(/\s+/).filter(Boolean);
-    const compact = norm.replace(/\s+/g, "");
     return CLIENT_BAD_WORDS.some((bad) => {
       const b = normalizeNickForCheck(bad).trim();
       if (tokens.includes(b)) return true;
-      return b.length >= 4 && compact.includes(b);
+      return b.length >= 4 && tokens.some((t) => t.includes(b));
     });
   }
 
@@ -230,35 +243,67 @@
       .replace(/[<>&"'`\\]/g, "")
       .replace(/\s+/g, " ")
       .trim()
-      .substring(0, 18);
+      .substring(0, MAX_NICK_LEN);
+  }
+
+  function setNicknameWarning(msg) {
+    if (!els.nicknameError) return;
+    if (msg) {
+      els.nicknameError.textContent = msg;
+      els.nicknameError.style.display = "block";
+      els.nicknameInput.classList.add("input-error");
+    } else {
+      els.nicknameError.style.display = "none";
+      els.nicknameInput.classList.remove("input-error");
+    }
   }
 
   els.nicknameInput.addEventListener("input", () => {
-    const cleaned = els.nicknameInput.value.replace(/[<>&"'`\\]/g, "");
+    const cleaned = els.nicknameInput.value.replace(/[<>&"'`\\]/g, "").substring(0, MAX_NICK_LEN);
     if (cleaned !== els.nicknameInput.value) {
       els.nicknameInput.value = cleaned;
     }
-    els.btnStart.disabled = cleaned.trim().length === 0;
+    const trimmed = cleaned.replace(/\s+/g, " ").trim();
+    if (trimmed && hasProfanity(trimmed)) {
+      setNicknameWarning("Uygunsuz bir isim girdiniz, lütfen değiştirin.");
+      els.btnStart.disabled = true;
+    } else {
+      setNicknameWarning("");
+      els.btnStart.disabled = trimmed.length === 0;
+    }
   });
 
   els.nicknameInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !els.btnStart.disabled) {
-      els.btnStart.click();
+    if (e.key === "Enter") {
+      const trimmed = cleanXssNick(els.nicknameInput.value);
+      if (trimmed && hasProfanity(trimmed)) {
+        e.preventDefault();
+        setNicknameWarning("Uygunsuz bir isim girdiniz, lütfen değiştirin.");
+        els.btnStart.disabled = true;
+        return;
+      }
+      if (!els.btnStart.disabled) {
+        els.btnStart.click();
+      }
     }
   });
 
   els.btnStart.addEventListener("click", () => {
     const cleaned = cleanXssNick(els.nicknameInput.value);
-    if (!cleaned) return;
+    if (!cleaned) {
+      setNicknameWarning("Lütfen geçerli bir isim girin.");
+      els.btnStart.disabled = true;
+      return;
+    }
 
     if (hasProfanity(cleaned)) {
-      alert("Lütfen uygun bir isim girin (küfür veya argo kullanılamaz).");
-      els.nicknameInput.value = "";
+      setNicknameWarning("Uygunsuz bir isim girdiniz, lütfen değiştirin.");
       els.btnStart.disabled = true;
       els.nicknameInput.focus();
       return;
     }
 
+    setNicknameWarning("");
     state.nickname = cleaned;
     els.nicknameInput.value = cleaned;
 
@@ -273,7 +318,7 @@
       });
     } else {
       // Solo Mod
-      socket.emit("game:request-text", { mode: state.selectedMode });
+      socket.emit("game:request-text", { mode: state.selectedMode, nickname: state.nickname });
     }
   });
 
@@ -1334,11 +1379,19 @@
   }
 
   socket.on("room:error", ({ message }) => {
-    alert("Arena Uyarısı: " + message);
+    if (screens.welcome.classList.contains("active")) {
+      setNicknameWarning(message);
+    } else {
+      alert("Arena Uyarısı: " + message);
+    }
   });
 
   socket.on("game:error", ({ message }) => {
-    alert("Hata: " + message);
+    if (screens.welcome.classList.contains("active")) {
+      setNicknameWarning(message);
+    } else {
+      alert("Hata: " + message);
+    }
   });
 
   // ══════════════════════════════════════════════════════════════
